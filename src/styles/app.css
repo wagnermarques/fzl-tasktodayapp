@@ -1,0 +1,13 @@
+/* Estilos globais e complementares do Task Today App */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: var(--md-sys-color-background, #fffbfe);
+  color: var(--md-sys-color-on-background, #1d1b20);
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  box-sizing: border-box;
+}

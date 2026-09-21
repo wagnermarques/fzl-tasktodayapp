@@ -1,0 +1,3 @@
+[submodule "fzl-fund-appshell--lit"]
+	path = fzl-fund-appshell--lit
+	url = git@github.com:wagnermarques/fzl-fund-appshell--lit.git
