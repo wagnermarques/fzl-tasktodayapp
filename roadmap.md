@@ -17,7 +17,7 @@ Documento de acompanhamento do ciclo de vida, entregas realizadas e próximas et
 ## 📊 Status Geral de Desenvolvimento
 
 ```
-[██████████████████░░] 75% Concluído (Fase 1 e Fase 2 entregues; Fase 3 em integração com stack fzlbpms)
+[█████████████████░░░] 85% Concluído (Fases 1 e 2 entregues; Fase 3 implementada, falta validação ponta a ponta com login real)
 ```
 
 ---
@@ -60,21 +60,37 @@ Documento de acompanhamento do ciclo de vida, entregas realizadas e próximas et
 
 ---
 
-### Fase 3: Coordenação & Integração com o Back-end `fzlbpms` (Em Planejamento 🔄)
+### Fase 3: Coordenação & Integração com o Back-end `fzlbpms` (Implementada — em validação 🔄)
+
+**Back-end (repositório `fzlbpms`)** — contrato completo da API, com exemplos JSON, em `fzlbpms/src-projects/karaf_bundles/blueprint-osgi-camel-bundles/tasktoday/README.org`.
 
 - [x] Elaboração do documento de contratação de API e SQL: [`docs/backend-karaf-camel-prompt.md`](docs/backend-karaf-camel-prompt.md).
-- [ ] Executar script de migração no banco `fzl-postgresql` na stack `fzlbpms` (tabelas `tasktoday_tasks`, `tasktoday_categories`, `tasktoday_push_subscriptions`).
-- [ ] Compilar e instalar o bundle OSGi Camel REST no Apache Karaf (`fzl-karaf-camel-integration`).
-- [ ] Configurar validação de tokens JWT do Keycloak (Realm `fzlbpms`) no interceptor Camel.
-- [ ] Ativar rotina periódica no Camel (Quartz) para envio de Push Notifications via VAPID para tarefas com deadline próximo.
-- [ ] Conectar o client REST do frontend ao endpoint do back-end (`https://dev/api/tasktoday`).
+- [x] Tabelas `tasktoday_tasks`, `tasktoday_categories`, `tasktoday_push_subscriptions` e `tasktoday_vapid_keys` no `fzldb` (schema aplicado automaticamente na subida do bundle; categorias nativas semeadas com os mesmos ids do PWA).
+- [x] Bundle OSGi Camel REST `tasktoday` instalado no Karaf (`fzl-karaf-camel-integration`, porta interna 9095), publicado pelo nginx em `https://fzlbpms.local/api/tasktoday`.
+- [x] Validação de tokens JWT do Keycloak (realm `fzlbpms`, assinatura RS256 contra o JWKS); registros isolados pelo `sub` do token.
+- [x] Rotina periódica no Camel (a cada 30 s) enviando Web Push com VAPID para tarefas cujo `deadline - triggerMinutes` chegou, marcando `alarmFired`.
+- [x] Endpoint extra `GET /push/vapid-public-key` (sem token) com a chave pública VAPID do servidor.
+- [x] Client público `fzl-tasktodayapp` no Keycloak (authorization code + PKCE S256; redirects para `localhost` e GitHub Pages).
+
+**Front-end (este repositório)**
+
+- [x] `VITE_REST_API_BASE_URL` apontando para `https://fzlbpms.local/api/tasktoday` e variáveis `VITE_KEYCLOAK_URL`, `VITE_KEYCLOAK_REALM`, `VITE_KEYCLOAK_CLIENT_ID` em [`.env.example`](.env.example).
+- [x] Login Keycloak por redirect com PKCE: [`keycloak-provider.js`](src/services/keycloak-provider.js), com o modo `auth.redirect` adicionado ao `fzl-fund-appshell--lit`. Sem as variáveis `VITE_KEYCLOAK_*`, o app continua com o login local de demonstração.
+- [x] Client REST com Bearer token e renovação automática: [`api-client.js`](src/services/api-client.js).
+- [x] Sincronização com o back-end: [`sync-service.js`](src/services/sync-service.js) (ver Fase 4, Outbox); `task-service` envia criações, edições, exclusões e arquivamentos e limpa os dados locais no logout.
+- [x] Web Push com a chave VAPID do servidor (a chave de exemplo fixa foi removida), registro da inscrição em `POST /push/subscribe` a cada login e teste via `POST /push/test`.
+- [x] Handlers `push` e `notificationclick` no Service Worker: [`public/push-sw.js`](public/push-sw.js), importado via `workbox.importScripts`.
+- [ ] Validação ponta a ponta com um usuário real do realm `fzlbpms` (login, CRUD sincronizado, alarme → push).
+- [ ] Build publicado (GitHub Pages) ainda usa o login local: `fzlbpms.local` só é acessível nesta máquina; falta um host público para o back-end.
+- [ ] Evitar alarme duplicado: por até 60 s após um push do servidor, o alarme local pode tocar de novo a mesma tarefa (até o próximo pull trazer `alarmFired`).
 
 ---
 
 ### Fase 4: Otimizações, Testes & Recursos Futuros (Próximos Passos 🎯)
 
-- [ ] **Sincronização Offline-First com Fila (Outbox Pattern)**:
-  - Gravar alterações em IndexedDB caso o usuário esteja offline e sincronizar com o back-end via Background Sync API quando a conexão retornar.
+- [ ] **Sincronização Offline-First com Fila (Outbox Pattern)** — parcialmente entregue:
+  - [x] Fila persistente de alterações (localStorage) enviada em ordem quando há sessão e rede; o estado do servidor substitui o cache local no login, ao voltar a conexão, ao reabrir o app e a cada 60 s.
+  - [ ] Migrar a fila para IndexedDB e sincronizar em segundo plano via Background Sync API.
 - [ ] **Visualização em Modo Calendário e Modo Quadro Kanban**:
   - Adicionar visualização de tarefas em grade semanal/mensal e colunas por status.
 - [ ] **Subtarefas e Checklist interno**:
