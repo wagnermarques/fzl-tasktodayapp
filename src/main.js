@@ -2,6 +2,7 @@ import { html } from 'lit'
 import './styles/app.css'
 import 'fzl-fund-appshell--lit/styles/theme.css'
 import { createAppShell, pattern } from 'fzl-fund-appshell--lit'
+import { keycloakProvider, isKeycloakConfigured } from './services/keycloak-provider.js'
 
 // Views
 import './views/task-today-home-view.js'
@@ -12,6 +13,8 @@ import './views/task-integrations-view.js'
 createAppShell({
   mount: '#app',
   title: 'Task Today App',
+  // Sem as variáveis VITE_KEYCLOAK_*, fica o provedor local de demonstração (sem sincronização)
+  ...(isKeycloakConfigured() ? { auth: keycloakProvider } : {}),
   home: () => html`<task-today-home-view></task-today-home-view>`,
   routes: [
     {

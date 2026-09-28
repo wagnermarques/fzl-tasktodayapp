@@ -2,7 +2,9 @@
  * Serviço de Gerenciamento de Notificações Web Push & Chaves VAPID
  */
 
-import { getStorageItem, setStorageItem } from './storage.js'
+import { setStorageItem } from './storage.js'
+import { apiFetch } from './api-client.js'
+import { syncService } from './sync-service.js'
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -35,18 +37,16 @@ class PushService {
   async fetchVapidPublicKey() {
     if (this.vapidPublicKey) return this.vapidPublicKey
 
-    const baseUrl = import.meta.env.VITE_REST_API_BASE_URL
-    if (!baseUrl) {
-      throw new Error('VITE_REST_API_BASE_URL não está configurada.')
-    }
-
-    const response = await fetch(`${baseUrl}/push/vapid-public-key`)
-    if (!response.ok) {
-      throw new Error(`Não foi possível obter a chave VAPID do servidor (HTTP ${response.status}).`)
-    }
-    const { publicKey } = await response.json()
+    const { publicKey } = await apiFetch('/push/vapid-public-key', { auth: false })
     this.vapidPublicKey = publicKey
     return publicKey
+  }
+
+  /** Registra a inscrição no servidor (idempotente por navegador); exige sessão. */
+  async registerWithServer(subscription) {
+    if (!subscription || !syncService.isActive()) return false
+    await apiFetch('/push/subscribe', { method: 'POST', body: subscription.toJSON() })
+    return true
   }
 
   isSupported() {
@@ -106,6 +106,7 @@ class PushService {
 
       this.subscription = subscription
       setStorageItem('push:subscription', subscription.toJSON())
+      await this.registerWithServer(subscription)
 
       return subscription
     } catch (err) {
@@ -128,6 +129,11 @@ class PushService {
   }
 
   async sendTestNotification(title = 'Task Today App — Teste', message = 'Notificação push funcionando com sucesso!') {
+    // Com sessão e inscrição, o teste passa pelo servidor (caminho real do alarme)
+    if (syncService.isActive() && await this.getExistingSubscription()) {
+      await apiFetch('/push/test', { method: 'POST', body: { title, message } })
+      return
+    }
     if (Notification.permission === 'granted') {
       if ('serviceWorker' in navigator) {
         const reg = await navigator.serviceWorker.ready
@@ -150,3 +156,9 @@ class PushService {
 }
 
 export const pushService = new PushService()
+
+// A cada login, garante que a inscrição deste navegador pertence ao usuário logado
+syncService.onLogin(async () => {
+  const subscription = await pushService.getExistingSubscription()
+  await pushService.registerWithServer(subscription)
+})
