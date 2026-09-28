@@ -5,7 +5,7 @@
 import { getStorageItem, setStorageItem, initSeedData, NATIVE_CATEGORIES } from './storage.js'
 import { alarmService } from './alarm-service.js'
 import { syncService } from './sync-service.js'
-import { onSignOut } from './keycloak-provider.js'
+import { onSignOut, isTaskTodayAdmin } from './keycloak-provider.js'
 
 class TaskService {
   constructor() {
@@ -68,7 +68,8 @@ class TaskService {
       name: category.name,
       color: category.color || '#1976d2',
       icon: category.icon || 'folder',
-      isNative: false,
+      // Categoria nativa (visível a todos os usuários) só para o administrador
+      isNative: Boolean(category.isNative) && isTaskTodayAdmin(),
       createdAt: new Date().toISOString()
     }
     cats.push(newCat)
@@ -77,11 +78,36 @@ class TaskService {
     return newCat
   }
 
+  /** Categorias próprias: qualquer usuário; nativas: só o administrador. */
+  canManageCategory(category) {
+    return Boolean(category) && (!category.isNative || isTaskTodayAdmin())
+  }
+
+  updateCategory(categoryId, patch) {
+    const cats = this.getCategories()
+    const idx = cats.findIndex(c => c.id === categoryId)
+    if (idx === -1 || !this.canManageCategory(cats[idx])) return null
+
+    const { name, color, icon } = patch
+    const changes = Object.fromEntries(
+      Object.entries({ name, color, icon }).filter(([, v]) => v !== undefined)
+    )
+    cats[idx] = { ...cats[idx], ...changes }
+    this.saveCategories(cats)
+    syncService.categoryUpdated(categoryId, changes)
+    return cats[idx]
+  }
+
   deleteCategory(categoryId) {
     const category = this.getCategories().find(c => c.id === categoryId)
-    if (!category || category.isNative) return
+    if (!this.canManageCategory(category)) return
     const cats = this.getCategories().filter(c => c.id !== categoryId)
     this.saveCategories(cats)
+
+    // Mesmo efeito do servidor: as tarefas da categoria ficam sem categoria
+    const tasks = this.getTasks().map(t => t.categoryId === categoryId ? { ...t, categoryId: null } : t)
+    setStorageItem('tasks', tasks)
+    this._notify()
     syncService.categoryDeleted(categoryId)
   }
 

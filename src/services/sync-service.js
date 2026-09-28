@@ -17,7 +17,8 @@ const PULL_INTERVAL_MS = 60 * 1000
 
 const TASK_CREATE_FIELDS = ['id', 'title', 'description', 'categoryId', 'priority', 'status', 'deadline', 'alertType', 'triggerMinutes', 'isArchived']
 const TASK_UPDATE_FIELDS = ['title', 'description', 'categoryId', 'priority', 'status', 'deadline', 'alertType', 'triggerMinutes', 'isArchived', 'alarmFired']
-const CATEGORY_CREATE_FIELDS = ['id', 'name', 'color', 'icon']
+const CATEGORY_CREATE_FIELDS = ['id', 'name', 'color', 'icon', 'isNative']
+const CATEGORY_UPDATE_FIELDS = ['name', 'color', 'icon']
 
 function pick(obj, fields) {
   const out = {}
@@ -90,6 +91,13 @@ class SyncService {
 
   categoryCreated(category) {
     this._enqueue({ op: 'create', kind: 'category', id: category.id, body: pick(category, CATEGORY_CREATE_FIELDS) })
+  }
+
+  categoryUpdated(categoryId, patch) {
+    const body = pick(patch, CATEGORY_UPDATE_FIELDS)
+    if (Object.keys(body).length > 0) {
+      this._enqueue({ op: 'update', kind: 'category', id: categoryId, body })
+    }
   }
 
   categoryDeleted(categoryId) {

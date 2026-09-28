@@ -54,6 +54,14 @@ export async function getAccessToken() {
   }
 }
 
+export const TASKTODAY_ADMIN_ROLE = 'tasktoday-admin'
+
+/** true quando o usuário logado tem o papel de administrador do Task Today
+ *  (cria, edita e exclui categorias nativas). */
+export function isTaskTodayAdmin() {
+  return Boolean(keycloak?.authenticated && keycloak.hasRealmRole(TASKTODAY_ADMIN_ROLE))
+}
+
 /** Chamado antes do logout, para limpar os dados locais do usuário. */
 export function onSignOut(listener) {
   signOutListeners.add(listener)

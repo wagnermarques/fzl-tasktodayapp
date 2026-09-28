@@ -1,12 +1,39 @@
 import { LitElement, html, css } from 'lit'
+import { authService } from 'fzl-fund-appshell--lit'
 import { taskService } from '../services/task-service.js'
+import { isTaskTodayAdmin } from '../services/keycloak-provider.js'
+
+const ICON_OPTIONS = [
+  { value: 'label', label: 'Etiqueta' },
+  { value: 'work', label: 'Trabalho' },
+  { value: 'folder', label: 'Pasta' },
+  { value: 'school', label: 'Estudos' },
+  { value: 'payments', label: 'Finanças' },
+  { value: 'person', label: 'Pessoal' },
+  { value: 'code', label: 'Código / TI' },
+  { value: 'fitness_center', label: 'Saúde / Treino' },
+  { value: 'shopping_cart', label: 'Compras' },
+  { value: 'flight', label: 'Viagens' },
+  { value: 'home', label: 'Casa' }
+]
+
+// Mantém na lista um ícone que já está em uso mas não faz parte das opções
+function iconOptions(current) {
+  const options = current && !ICON_OPTIONS.some(o => o.value === current)
+    ? [...ICON_OPTIONS, { value: current, label: current }]
+    : ICON_OPTIONS
+  return options.map(o => html`<option value=${o.value} ?selected=${o.value === current}>${o.label}</option>`)
+}
 
 export class TaskCategoriesView extends LitElement {
   static properties = {
     categories: { type: Array },
     newCategoryName: { type: String },
     newCategoryColor: { type: String },
-    newCategoryIcon: { type: String }
+    newCategoryIcon: { type: String },
+    newCategoryNative: { type: Boolean },
+    isAdmin: { type: Boolean },
+    editing: { type: Object }
   }
 
   static styles = css`
@@ -142,6 +169,70 @@ export class TaskCategoriesView extends LitElement {
     .btn-del:hover {
       background: rgba(186, 26, 26, 0.1);
     }
+    .item-actions {
+      display: flex;
+      gap: 2px;
+    }
+    .btn-icon {
+      background: none;
+      border: none;
+      color: var(--md-sys-color-on-surface-variant, #49454f);
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 50%;
+    }
+    .btn-icon:hover {
+      background: rgba(103, 80, 164, 0.1);
+    }
+    .category-item.editing {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .edit-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .edit-row input[type="text"] {
+      flex: 1;
+      min-width: 140px;
+    }
+    .edit-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+    .btn-text {
+      background: none;
+      border: none;
+      color: var(--md-sys-color-primary, #6750a4);
+      font-weight: 600;
+      cursor: pointer;
+      padding: 6px 12px;
+      border-radius: 16px;
+    }
+    .native-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: var(--md-sys-color-on-surface-variant, #49454f);
+    }
+    .admin-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--md-sys-color-on-tertiary-container, #31111d);
+      background: var(--md-sys-color-tertiary-container, #ffd8e4);
+      border-radius: 12px;
+      padding: 2px 10px;
+      margin-top: 8px;
+    }
   `
 
   constructor() {
@@ -150,6 +241,9 @@ export class TaskCategoriesView extends LitElement {
     this.newCategoryName = ''
     this.newCategoryColor = '#6750a4'
     this.newCategoryIcon = 'label'
+    this.newCategoryNative = false
+    this.isAdmin = false
+    this.editing = null
   }
 
   connectedCallback() {
@@ -159,11 +253,16 @@ export class TaskCategoriesView extends LitElement {
       this.categories = taskService.getCategories()
       this.requestUpdate()
     })
+    // O papel de administrador vem do token: reavalia a cada login/logout
+    this.unsubscribeAuth = authService.subscribe(() => {
+      this.isAdmin = isTaskTodayAdmin()
+    })
   }
 
   disconnectedCallback() {
     super.disconnectedCallback()
     if (this.unsubscribe) this.unsubscribe()
+    if (this.unsubscribeAuth) this.unsubscribeAuth()
   }
 
   render() {
@@ -171,10 +270,13 @@ export class TaskCategoriesView extends LitElement {
       <div class="header">
         <h1 class="title"><md-icon>category</md-icon> Categorização Multiescopo (RF02)</h1>
         <p class="subtitle">Gerencie as categorias nativas do sistema e crie categorias personalizadas para organizar suas tarefas.</p>
+        ${this.isAdmin ? html`
+          <span class="admin-badge"><md-icon>admin_panel_settings</md-icon> Administrador: você pode criar, editar e excluir categorias nativas</span>
+        ` : ''}
       </div>
 
       <div class="add-category-card">
-        <h3 class="card-title">Criar Nova Categoria Personalizada</h3>
+        <h3 class="card-title">Criar Nova Categoria</h3>
         <form @submit=${this._handleAddCategory} class="form-row">
           <div class="form-field grow">
             <label>Nome da Categoria</label>
@@ -202,14 +304,7 @@ export class TaskCategoriesView extends LitElement {
               .value=${this.newCategoryIcon}
               @change=${e => this.newCategoryIcon = e.target.value}
             >
-              <option value="label">Etiqueta</option>
-              <option value="work">Trabalho</option>
-              <option value="folder">Pasta</option>
-              <option value="code">Código / TI</option>
-              <option value="fitness_center">Saúde / Treino</option>
-              <option value="shopping_cart">Compras</option>
-              <option value="flight">Viagens</option>
-              <option value="home">Casa</option>
+              ${iconOptions(this.newCategoryIcon)}
             </select>
           </div>
 
@@ -217,10 +312,20 @@ export class TaskCategoriesView extends LitElement {
             <md-icon>add</md-icon> Adicionar
           </button>
         </form>
+        ${this.isAdmin ? html`
+          <label class="native-option">
+            <input
+              type="checkbox"
+              .checked=${this.newCategoryNative}
+              @change=${e => this.newCategoryNative = e.target.checked}
+            />
+            Categoria nativa (visível para todos os usuários)
+          </label>
+        ` : ''}
       </div>
 
       <div class="categories-list">
-        ${this.categories.map(cat => html`
+        ${this.categories.map(cat => this.editing?.id === cat.id ? this._renderEditItem() : html`
           <div class="category-item">
             <div class="category-info">
               <div class="cat-badge" style="background-color: ${cat.color}">
@@ -231,15 +336,67 @@ export class TaskCategoriesView extends LitElement {
                 <div class="cat-type">${cat.isNative ? 'Categoria Nativa' : 'Personalizada'}</div>
               </div>
             </div>
-            ${!cat.isNative ? html`
-              <button class="btn-del" @click=${() => this._deleteCategory(cat.id)} title="Excluir Categoria">
-                <md-icon>delete</md-icon>
-              </button>
+            ${taskService.canManageCategory(cat) ? html`
+              <div class="item-actions">
+                <button class="btn-icon" @click=${() => this._startEdit(cat)} title="Editar Categoria">
+                  <md-icon>edit</md-icon>
+                </button>
+                <button class="btn-del" @click=${() => this._deleteCategory(cat)} title="Excluir Categoria">
+                  <md-icon>delete</md-icon>
+                </button>
+              </div>
             ` : ''}
           </div>
         `)}
       </div>
     `
+  }
+
+  _renderEditItem() {
+    const e = this.editing
+    return html`
+      <form class="category-item editing" @submit=${this._saveEdit}>
+        <div class="edit-row">
+          <input
+            type="text"
+            required
+            maxlength="120"
+            aria-label="Nome da Categoria"
+            .value=${e.name}
+            @input=${ev => this.editing = { ...this.editing, name: ev.target.value }}
+          />
+          <input
+            type="color"
+            aria-label="Cor"
+            .value=${e.color}
+            @input=${ev => this.editing = { ...this.editing, color: ev.target.value }}
+          />
+          <select
+            aria-label="Ícone"
+            @change=${ev => this.editing = { ...this.editing, icon: ev.target.value }}
+          >
+            ${iconOptions(e.icon)}
+          </select>
+        </div>
+        ${e.isNative ? html`<div class="cat-type">Categoria nativa: a alteração vale para todos os usuários.</div>` : ''}
+        <div class="edit-actions">
+          <button type="button" class="btn-text" @click=${() => this.editing = null}>Cancelar</button>
+          <button type="submit" class="btn-add"><md-icon>check</md-icon> Salvar</button>
+        </div>
+      </form>
+    `
+  }
+
+  _startEdit(cat) {
+    this.editing = { id: cat.id, name: cat.name, color: cat.color || '#6750a4', icon: cat.icon || 'label', isNative: cat.isNative }
+  }
+
+  _saveEdit(e) {
+    e.preventDefault()
+    const { id, name, color, icon } = this.editing
+    if (!name.trim()) return
+    taskService.updateCategory(id, { name: name.trim(), color, icon })
+    this.editing = null
   }
 
   _handleAddCategory(e) {
@@ -249,15 +406,20 @@ export class TaskCategoriesView extends LitElement {
     taskService.addCategory({
       name: this.newCategoryName.trim(),
       color: this.newCategoryColor,
-      icon: this.newCategoryIcon
+      icon: this.newCategoryIcon,
+      isNative: this.newCategoryNative
     })
 
     this.newCategoryName = ''
+    this.newCategoryNative = false
   }
 
-  _deleteCategory(id) {
-    if (confirm('Deseja excluir esta categoria personalizada?')) {
-      taskService.deleteCategory(id)
+  _deleteCategory(cat) {
+    const message = cat.isNative
+      ? `Excluir a categoria nativa "${cat.name}"?\n\nEla some para TODOS os usuários, e as tarefas de todos que a usavam ficam sem categoria. Esta ação não pode ser desfeita.`
+      : `Deseja excluir a categoria "${cat.name}"? As tarefas dela ficam sem categoria.`
+    if (confirm(message)) {
+      taskService.deleteCategory(cat.id)
     }
   }
 }

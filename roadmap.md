@@ -71,6 +71,7 @@ Documento de acompanhamento do ciclo de vida, entregas realizadas e próximas et
 - [x] Rotina periódica no Camel (a cada 30 s) enviando Web Push com VAPID para tarefas cujo `deadline - triggerMinutes` chegou, marcando `alarmFired`.
 - [x] Endpoint extra `GET /push/vapid-public-key` (sem token) com a chave pública VAPID do servidor.
 - [x] Client público `fzl-tasktodayapp` no Keycloak (authorization code + PKCE S256; redirects para `localhost` e GitHub Pages).
+- [x] Papel de realm `tasktoday-admin` (atribuído a `fzlbpmsadmin`): cria, edita e exclui categorias nativas; novo `PUT /categories/{id}` para edição parcial de categorias.
 
 **Front-end (este repositório)**
 
@@ -80,7 +81,9 @@ Documento de acompanhamento do ciclo de vida, entregas realizadas e próximas et
 - [x] Sincronização com o back-end: [`sync-service.js`](src/services/sync-service.js) (ver Fase 4, Outbox); `task-service` envia criações, edições, exclusões e arquivamentos e limpa os dados locais no logout.
 - [x] Web Push com a chave VAPID do servidor (a chave de exemplo fixa foi removida), registro da inscrição em `POST /push/subscribe` a cada login e teste via `POST /push/test`.
 - [x] Handlers `push` e `notificationclick` no Service Worker: [`public/push-sw.js`](public/push-sw.js), importado via `workbox.importScripts`.
-- [ ] Validação ponta a ponta com um usuário real do realm `fzlbpms` (login, CRUD sincronizado, alarme → push).
+- [x] Edição de categorias (nome, cor e ícone) na [`<task-categories-view>`](src/views/task-categories-view.js), sincronizada via `PUT /categories/{id}`.
+- [x] Administração de categorias nativas para o papel `tasktoday-admin` (`isTaskTodayAdmin()` em [`keycloak-provider.js`](src/services/keycloak-provider.js)): criar como nativa, editar e excluir, com confirmação reforçada na exclusão (afeta as tarefas de todos os usuários).
+- [ ] Validação ponta a ponta com um usuário real do realm `fzlbpms` (login, CRUD sincronizado, alarme → push) e com `fzlbpmsadmin` (categorias nativas).
 - [ ] Build publicado (GitHub Pages) ainda usa o login local: `fzlbpms.local` só é acessível nesta máquina; falta um host público para o back-end.
 - [ ] Evitar alarme duplicado: por até 60 s após um push do servidor, o alarme local pode tocar de novo a mesma tarefa (até o próximo pull trazer `alarmFired`).
 
