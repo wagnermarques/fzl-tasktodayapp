@@ -149,7 +149,7 @@ export class TaskAlarmsConfigView extends LitElement {
     this.settings = getStorageItem('settings:alerts', DEFAULT_ALERT_SETTINGS)
     this.pushPermission = 'default'
     this.isSubscribedToPush = false
-    this.vapidKey = pushService.vapidPublicKey
+    this.vapidKey = ''
     this.statusMessage = ''
   }
 
@@ -158,6 +158,11 @@ export class TaskAlarmsConfigView extends LitElement {
     this.pushPermission = await pushService.getPermissionStatus()
     const sub = await pushService.getExistingSubscription()
     this.isSubscribedToPush = !!sub
+    try {
+      this.vapidKey = await pushService.fetchVapidPublicKey()
+    } catch (err) {
+      this.vapidKey = `Indisponível: ${err.message}`
+    }
   }
 
   render() {
@@ -288,7 +293,7 @@ export class TaskAlarmsConfigView extends LitElement {
 
   async _subscribePush() {
     try {
-      await pushService.subscribe(this.vapidKey)
+      await pushService.subscribe()
       this.pushPermission = await pushService.getPermissionStatus()
       this.isSubscribedToPush = true
       this._showMessage('Inscrição Web Push realizada com sucesso!')

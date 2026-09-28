@@ -15,11 +15,38 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray
 }
 
+function sameKey(buffer, bytes) {
+  if (!buffer) return false
+  const current = new Uint8Array(buffer)
+  return current.length === bytes.length && current.every((b, i) => b === bytes[i])
+}
+
 class PushService {
   constructor() {
     this.subscription = null
-    // Chave pública VAPID padrão para testes / desenvolvimento
-    this.vapidPublicKey = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'
+    // Chave pública VAPID do servidor (GET /push/vapid-public-key); carregada sob demanda
+    this.vapidPublicKey = null
+  }
+
+  /**
+   * Busca a chave pública VAPID no back-end. Precisa ser a do servidor:
+   * inscrições feitas com outra chave nunca recebem push.
+   */
+  async fetchVapidPublicKey() {
+    if (this.vapidPublicKey) return this.vapidPublicKey
+
+    const baseUrl = import.meta.env.VITE_REST_API_BASE_URL
+    if (!baseUrl) {
+      throw new Error('VITE_REST_API_BASE_URL não está configurada.')
+    }
+
+    const response = await fetch(`${baseUrl}/push/vapid-public-key`)
+    if (!response.ok) {
+      throw new Error(`Não foi possível obter a chave VAPID do servidor (HTTP ${response.status}).`)
+    }
+    const { publicKey } = await response.json()
+    this.vapidPublicKey = publicKey
+    return publicKey
   }
 
   isSupported() {
@@ -50,7 +77,7 @@ class PushService {
     }
   }
 
-  async subscribe(vapidKey = this.vapidPublicKey) {
+  async subscribe(vapidKey) {
     if (!this.isSupported()) {
       throw new Error('Web Push não é suportado neste navegador.')
     }
@@ -61,8 +88,16 @@ class PushService {
     }
 
     try {
+      const key = vapidKey || await this.fetchVapidPublicKey()
       const reg = await navigator.serviceWorker.ready
-      const convertedVapidKey = urlBase64ToUint8Array(vapidKey)
+      const convertedVapidKey = urlBase64ToUint8Array(key)
+
+      // Uma inscrição feita com outra chave (ex.: a antiga chave de exemplo)
+      // impede o subscribe() com a chave nova, então é descartada antes.
+      const existing = await reg.pushManager.getSubscription()
+      if (existing && !sameKey(existing.options.applicationServerKey, convertedVapidKey)) {
+        await existing.unsubscribe()
+      }
 
       const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,

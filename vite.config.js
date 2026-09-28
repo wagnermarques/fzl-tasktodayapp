@@ -6,6 +6,11 @@ export default defineConfig(
     appshellConfig({
       base: './',
       storagePrefix: 'fzl-tasktodayapp',
+      includeAssets: ['favicon.svg', 'push-sw.js'],
+      workbox: {
+        // Handlers de 'push' e 'notificationclick' (public/push-sw.js)
+        importScripts: ['push-sw.js'],
+      },
       manifest: {
         name: 'Task Today App — Gestão de Tarefas e Deadlines',
         short_name: 'Task Today',
