@@ -39,6 +39,13 @@ jobs:
 
       - name: Build PWA with Vite
         run: npm run build
+        env:
+          # Produção: back-end e Keycloak do fzlbpms no domínio público (sobrescrevíveis por variáveis do repositório)
+          VITE_REST_API_BASE_URL: ${{ vars.VITE_REST_API_BASE_URL || 'https://fzlbpms.com.br/api/tasktoday' }}
+          VITE_KEYCLOAK_URL: ${{ vars.VITE_KEYCLOAK_URL || 'https://fzlbpms.com.br/auth' }}
+          VITE_KEYCLOAK_REALM: ${{ vars.VITE_KEYCLOAK_REALM || 'fzlbpms' }}
+          VITE_KEYCLOAK_CLIENT_ID: ${{ vars.VITE_KEYCLOAK_CLIENT_ID || 'fzl-tasktodayapp' }}
+          VITE_GA4_MEASUREMENT_ID: ${{ vars.VITE_GA4_MEASUREMENT_ID }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
