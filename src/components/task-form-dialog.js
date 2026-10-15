@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit'
+import './rich-text-editor.js'
 
 export class TaskFormDialog extends LitElement {
   static properties = {
@@ -131,6 +132,13 @@ export class TaskFormDialog extends LitElement {
     this.task = null
     this.categories = []
     this.isEditing = false
+    this._description = ''
+  }
+
+  updated(changedProps) {
+    if (changedProps.has('open') && this.open) {
+      this._description = this.task?.description || ''
+    }
   }
 
   _formatForInput(isoString) {
@@ -168,14 +176,12 @@ export class TaskFormDialog extends LitElement {
             </div>
 
             <div class="form-group">
-              <label for="description">Descrição / Detalhes</label>
-              <textarea
-                id="description"
-                name="description"
-                rows="3"
-                placeholder="Detalhes opcionais..."
-                .value=${t.description || ''}
-              ></textarea>
+              <rich-text-editor
+                label="Descrição / Detalhes"
+                placeholder="Detalhes opcionais... use a barra para negrito, listas e links"
+                .value=${this._description}
+                @value-changed=${this._onDescriptionChange}
+              ></rich-text-editor>
             </div>
 
             <div class="row-2">
@@ -244,6 +250,10 @@ export class TaskFormDialog extends LitElement {
     `
   }
 
+  _onDescriptionChange(e) {
+    this._description = e.detail.value
+  }
+
   _close() {
     this.open = false
     this.dispatchEvent(new CustomEvent('close-dialog', { bubbles: true, composed: true }))
@@ -256,7 +266,7 @@ export class TaskFormDialog extends LitElement {
 
     const payload = {
       title: formData.get('title'),
-      description: formData.get('description'),
+      description: this._description,
       categoryId: formData.get('categoryId'),
       priority: formData.get('priority'),
       deadline: formData.get('deadline') || null,

@@ -15,6 +15,7 @@
   "dependencies": {
     "@material-symbols/font-400": "^0.35.0",
     "@material/web": "^2.5.0",
+    "dompurify": "^3.4.17",
     "fzl-fund-appshell--lit": "*",
     "keycloak-js": "^26.0.0",
     "lit": "^3.3.3"

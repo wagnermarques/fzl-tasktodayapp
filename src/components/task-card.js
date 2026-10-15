@@ -1,5 +1,7 @@
 import { LitElement, html, css } from 'lit'
+import { unsafeHTML } from 'lit/directives/unsafe-html.js'
 import './task-deadline-badge.js'
+import { sanitizeDescriptionHtml } from '../utils/html-sanitize.js'
 
 export class TaskCard extends LitElement {
   static properties = {
@@ -104,6 +106,19 @@ export class TaskCard extends LitElement {
       white-space: pre-line;
       word-break: break-word;
     }
+    .description p {
+      margin: 0 0 6px 0;
+    }
+    .description p:last-child {
+      margin-bottom: 0;
+    }
+    .description :is(ul, ol) {
+      margin: 4px 0;
+      padding-left: 20px;
+    }
+    .description a {
+      color: var(--md-sys-color-primary, #6750a4);
+    }
     .meta-row {
       display: flex;
       align-items: center;
@@ -189,7 +204,7 @@ export class TaskCard extends LitElement {
               <h3 class="title">${this.task.title}</h3>
               <span class="priority-pill priority-${this.task.priority || 'MEDIA'}">${this.task.priority || 'MÉDIA'}</span>
             </div>
-            ${this.task.description ? html`<p class="description">${this.task.description}</p>` : ''}
+            ${this.task.description ? html`<div class="description">${unsafeHTML(sanitizeDescriptionHtml(this.task.description))}</div>` : ''}
             
             <div class="meta-row">
               <span class="category-chip" style="background-color: ${catColor}">
