@@ -1,28 +1,98 @@
 /**
  * Gerenciador de armazenamento local e cache offline para o Task Today App.
  */
-
-const STORAGE_PREFIX = 'fzl-tasktodayapp:'
-
-export function getStorageItem(key, fallback = null) {
-  try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + key)
-    return raw ? JSON.parse(raw) : fallback
-  } catch (err) {
-    console.error(`Erro ao ler ${key} do localStorage:`, err)
-    return fallback
+class StorageManager {
+  constructor(prefix = 'fzl-tasktodayapp:') {
+    this.prefix = prefix
   }
-}
 
-export function setStorageItem(key, value) {
-  try {
-    if (value === null || value === undefined) {
-      localStorage.removeItem(STORAGE_PREFIX + key)
-    } else {
-      localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value))
+  getItem(key, fallback = null) {
+    try {
+      const raw = localStorage.getItem(this.prefix + key)
+      return raw ? JSON.parse(raw) : fallback
+    } catch (err) {
+      console.error(`Erro ao ler ${key} do localStorage:`, err)
+      return fallback
     }
-  } catch (err) {
-    console.error(`Erro ao gravar ${key} no localStorage:`, err)
+  }
+
+  setItem(key, value) {
+    try {
+      if (value === null || value === undefined) {
+        localStorage.removeItem(this.prefix + key)
+      } else {
+        localStorage.setItem(this.prefix + key, JSON.stringify(value))
+      }
+    } catch (err) {
+      console.error(`Erro ao gravar ${key} no localStorage:`, err)
+    }
+  }
+
+  /** Inicializa dados padrão caso seja o primeiro acesso. */
+  initSeedData() {
+    const existingCategories = this.getItem('categories', null)
+    if (!existingCategories || existingCategories.length === 0) {
+      this.setItem('categories', NATIVE_CATEGORIES)
+    }
+
+    const existingSettings = this.getItem('settings:alerts', null)
+    if (!existingSettings) {
+      this.setItem('settings:alerts', DEFAULT_ALERT_SETTINGS)
+    }
+
+    const existingTasks = this.getItem('tasks', null)
+    if (!existingTasks) {
+      const now = new Date()
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0)
+      const overdueDate = new Date(now.getTime() - 2 * 60 * 60 * 1000) // 2h atrás
+      const thisWeekDate = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) // 3 dias
+
+      const sampleTasks = [
+        {
+          id: 'task-sample-1',
+          title: 'Revisar módulo de Arquitetura Apache Camel',
+          description: 'Concluir a leitura dos bundles de integração e rotas REST do Apache Karaf.',
+          categoryId: 'cat-cursos',
+          priority: 'ALTA',
+          status: 'PENDENTE',
+          deadline: todayEnd.toISOString(),
+          alertType: 'sound',
+          triggerMinutes: 30,
+          isArchived: false,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString()
+        },
+        {
+          id: 'task-sample-2',
+          title: 'Pagamento da fatura de serviços Cloud',
+          description: 'Efetuar pagamento da infraestrutura via aplicativo do banco.',
+          categoryId: 'cat-financeira',
+          priority: 'URGENTE',
+          status: 'PENDENTE',
+          deadline: overdueDate.toISOString(),
+          alertType: 'sound',
+          triggerMinutes: 60,
+          isArchived: false,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString()
+        },
+        {
+          id: 'task-sample-3',
+          title: 'Comprar itens de mercado para a semana',
+          description: 'Frutas, vegetais e mantimentos para a rotina diária.',
+          categoryId: 'cat-cotidianas',
+          priority: 'MEDIA',
+          status: 'PENDENTE',
+          deadline: thisWeekDate.toISOString(),
+          alertType: 'notification',
+          triggerMinutes: 15,
+          isArchived: false,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString()
+        }
+      ]
+      this.setItem('tasks', sampleTasks)
+    }
   }
 }
 
@@ -45,69 +115,4 @@ export const DEFAULT_ALERT_SETTINGS = {
   browserNotification: true
 }
 
-// Inicializa dados padrão caso seja o primeiro acesso
-export function initSeedData() {
-  const existingCategories = getStorageItem('categories', null)
-  if (!existingCategories || existingCategories.length === 0) {
-    setStorageItem('categories', NATIVE_CATEGORIES)
-  }
-
-  const existingSettings = getStorageItem('settings:alerts', null)
-  if (!existingSettings) {
-    setStorageItem('settings:alerts', DEFAULT_ALERT_SETTINGS)
-  }
-
-  const existingTasks = getStorageItem('tasks', null)
-  if (!existingTasks) {
-    const now = new Date()
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 18, 0, 0)
-    const overdueDate = new Date(now.getTime() - 2 * 60 * 60 * 1000) // 2h atrás
-    const thisWeekDate = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) // 3 dias
-
-    const sampleTasks = [
-      {
-        id: 'task-sample-1',
-        title: 'Revisar módulo de Arquitetura Apache Camel',
-        description: 'Concluir a leitura dos bundles de integração e rotas REST do Apache Karaf.',
-        categoryId: 'cat-cursos',
-        priority: 'ALTA',
-        status: 'PENDENTE',
-        deadline: todayEnd.toISOString(),
-        alertType: 'sound',
-        triggerMinutes: 30,
-        isArchived: false,
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString()
-      },
-      {
-        id: 'task-sample-2',
-        title: 'Pagamento da fatura de serviços Cloud',
-        description: 'Efetuar pagamento da infraestrutura via aplicativo do banco.',
-        categoryId: 'cat-financeira',
-        priority: 'URGENTE',
-        status: 'PENDENTE',
-        deadline: overdueDate.toISOString(),
-        alertType: 'sound',
-        triggerMinutes: 60,
-        isArchived: false,
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString()
-      },
-      {
-        id: 'task-sample-3',
-        title: 'Comprar itens de mercado para a semana',
-        description: 'Frutas, vegetais e mantimentos para a rotina diária.',
-        categoryId: 'cat-cotidianas',
-        priority: 'MEDIA',
-        status: 'PENDENTE',
-        deadline: thisWeekDate.toISOString(),
-        alertType: 'notification',
-        triggerMinutes: 15,
-        isArchived: false,
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString()
-      }
-    ]
-    setStorageItem('tasks', sampleTasks)
-  }
-}
+export const storageManager = new StorageManager()

@@ -2,14 +2,14 @@
  * Serviço de Gerenciamento de Tarefas e Filtros Avançados (RF01, RF03, RF06, RF07)
  */
 
-import { getStorageItem, setStorageItem, initSeedData, NATIVE_CATEGORIES } from './storage.js'
+import { storageManager, NATIVE_CATEGORIES } from './storage.js'
 import { alarmService } from './alarm-service.js'
 import { syncService } from './sync-service.js'
 import { onSignOut, isTaskTodayAdmin } from './keycloak-provider.js'
 
 class TaskService {
   constructor() {
-    initSeedData()
+    storageManager.initSeedData()
     this.listeners = new Set()
     this._initAlarmChecker()
     this._initSync()
@@ -19,15 +19,15 @@ class TaskService {
     // O servidor é a referência depois de cada sincronização (inclusive alarmFired,
     // para o alarme local não tocar de novo o que o push do servidor já avisou)
     syncService.onPulled(({ tasks, categories }) => {
-      setStorageItem('tasks', tasks)
-      setStorageItem('categories', categories)
+      storageManager.setItem('tasks', tasks)
+      storageManager.setItem('categories', categories)
       this._notify()
     })
     // Os dados locais são do usuário que está saindo
     onSignOut(() => {
       syncService.clear()
-      setStorageItem('tasks', [])
-      setStorageItem('categories', NATIVE_CATEGORIES)
+      storageManager.setItem('tasks', [])
+      storageManager.setItem('categories', NATIVE_CATEGORIES)
       this._notify()
     })
     syncService.start()
@@ -49,15 +49,15 @@ class TaskService {
   }
 
   getTasks() {
-    return getStorageItem('tasks', [])
+    return storageManager.getItem('tasks', [])
   }
 
   getCategories() {
-    return getStorageItem('categories', [])
+    return storageManager.getItem('categories', [])
   }
 
   saveCategories(categories) {
-    setStorageItem('categories', categories)
+    storageManager.setItem('categories', categories)
     this._notify()
   }
 
@@ -106,7 +106,7 @@ class TaskService {
 
     // Mesmo efeito do servidor: as tarefas da categoria ficam sem categoria
     const tasks = this.getTasks().map(t => t.categoryId === categoryId ? { ...t, categoryId: null } : t)
-    setStorageItem('tasks', tasks)
+    storageManager.setItem('tasks', tasks)
     this._notify()
     syncService.categoryDeleted(categoryId)
   }
@@ -134,7 +134,7 @@ class TaskService {
     }
 
     tasks.unshift(newTask)
-    setStorageItem('tasks', tasks)
+    storageManager.setItem('tasks', tasks)
     this._notify()
     syncService.taskCreated(newTask)
     return newTask
@@ -166,7 +166,7 @@ class TaskService {
     }
 
     tasks[idx] = updated
-    setStorageItem('tasks', tasks)
+    storageManager.setItem('tasks', tasks)
     this._notify()
     syncService.taskUpdated(taskId, patch)
     return updated
@@ -190,7 +190,7 @@ class TaskService {
    */
   deleteTask(taskId) {
     const tasks = this.getTasks().filter(t => t.id !== taskId)
-    setStorageItem('tasks', tasks)
+    storageManager.setItem('tasks', tasks)
     this._notify()
     syncService.taskDeleted(taskId)
   }
@@ -198,7 +198,7 @@ class TaskService {
   bulkDelete(taskIds) {
     const idsSet = new Set(taskIds)
     const tasks = this.getTasks().filter(t => !idsSet.has(t.id))
-    setStorageItem('tasks', tasks)
+    storageManager.setItem('tasks', tasks)
     this._notify()
     for (const id of idsSet) syncService.taskDeleted(id)
   }
@@ -218,7 +218,7 @@ class TaskService {
       }
       return t
     })
-    setStorageItem('tasks', tasks)
+    storageManager.setItem('tasks', tasks)
     this._notify()
     for (const id of idsSet) syncService.taskUpdated(id, { isArchived })
   }

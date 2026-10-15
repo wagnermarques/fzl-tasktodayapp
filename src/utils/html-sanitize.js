@@ -14,6 +14,8 @@ DOMPurify.addHook('afterSanitizeAttributes', node => {
  * Sanitiza HTML gerado pelo rich-text-editor antes de salvar ou renderizar,
  * restringindo a um conjunto mínimo de tags de formatação (RF01/RF06).
  */
-export function sanitizeDescriptionHtml(html) {
-  return DOMPurify.sanitize(html || '', { ALLOWED_TAGS, ALLOWED_ATTR })
+export class DescriptionSanitizer {
+  static sanitize(html) {
+    return DOMPurify.sanitize(html || '', { ALLOWED_TAGS, ALLOWED_ATTR })
+  }
 }
