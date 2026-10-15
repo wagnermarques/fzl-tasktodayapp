@@ -8,8 +8,8 @@
  */
 
 import { authService } from 'fzl-fund-appshell--lit'
-import { getStorageItem, setStorageItem } from './storage.js'
-import { apiFetch, ApiError } from './api-client.js'
+import { storageManager } from './storage.js'
+import { apiClient, ApiError } from './api-client.js'
 import { isKeycloakConfigured } from './keycloak-provider.js'
 
 const OUTBOX_KEY = 'sync:outbox'
@@ -57,7 +57,7 @@ class SyncService {
   }
 
   getOutbox() {
-    return getStorageItem(OUTBOX_KEY, [])
+    return storageManager.getItem(OUTBOX_KEY, [])
   }
 
   /** Recebe { tasks, categories } do servidor depois de cada pull. */
@@ -106,13 +106,13 @@ class SyncService {
 
   _enqueue(entry) {
     if (!isKeycloakConfigured()) return
-    setStorageItem(OUTBOX_KEY, [...this.getOutbox(), entry])
+    storageManager.setItem(OUTBOX_KEY, [...this.getOutbox(), entry])
     this.flush()
   }
 
   /** Descarta a fila (logout). */
   clear() {
-    setStorageItem(OUTBOX_KEY, null)
+    storageManager.setItem(OUTBOX_KEY, null)
   }
 
   // --- Envio e recebimento --------------------------------------------------
@@ -142,7 +142,7 @@ class SyncService {
       }
       // Relê a fila: novas alterações podem ter entrado durante o envio
       outbox = this.getOutbox().slice(1)
-      setStorageItem(OUTBOX_KEY, outbox)
+      storageManager.setItem(OUTBOX_KEY, outbox)
     }
     return true
   }
@@ -150,12 +150,12 @@ class SyncService {
   async _send(entry) {
     const { method, path, body } = requestFor(entry)
     try {
-      await apiFetch(path, { method, body })
+      await apiClient.fetch(path, { method, body })
     } catch (err) {
       // Criação repetida (ex.: resposta perdida na primeira tentativa): vira atualização
       if (err instanceof ApiError && err.status === 409 && entry.op === 'create' && entry.kind === 'task') {
         const { id, ...rest } = entry.body
-        await apiFetch(`/tasks/${encodeURIComponent(id)}`, { method: 'PUT', body: rest })
+        await apiClient.fetch(`/tasks/${encodeURIComponent(id)}`, { method: 'PUT', body: rest })
         return
       }
       if (err instanceof ApiError && err.status === 404 && entry.op === 'delete') return
@@ -169,8 +169,8 @@ class SyncService {
     try {
       if (!(await this.flush())) return
       const [categories, tasks] = await Promise.all([
-        apiFetch('/categories'),
-        apiFetch('/tasks?include_archived=true')
+        apiClient.fetch('/categories'),
+        apiClient.fetch('/tasks?include_archived=true')
       ])
       if (this.getOutbox().length > 0) return
       for (const listener of this.pulledListeners) listener({ tasks, categories })

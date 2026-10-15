@@ -2,7 +2,7 @@
  * Serviço de Alarmes Sonoros e Alertas Visuais — Web Audio API & Notification API
  */
 
-import { getStorageItem } from './storage.js'
+import { storageManager } from './storage.js'
 
 class AlarmService {
   constructor() {
@@ -164,7 +164,7 @@ class AlarmService {
    * Dispara um alarme para uma tarefa específica.
    */
   triggerAlarm(task) {
-    const settings = getStorageItem('settings:alerts', { soundTone: 'chime', volume: 0.8, soundEnabled: true })
+    const settings = storageManager.getItem('settings:alerts', { soundTone: 'chime', volume: 0.8, soundEnabled: true })
     this.activeAlarmTask = task
 
     if (task.alertType === 'sound' || settings.soundEnabled) {
