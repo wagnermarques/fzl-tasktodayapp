@@ -1,5 +1,5 @@
 import { LitElement, html, css } from 'lit'
-import { storageManager, DEFAULT_ALERT_SETTINGS } from '../services/storage.js'
+import { getStorageItem, setStorageItem, DEFAULT_ALERT_SETTINGS } from '../services/storage.js'
 import { alarmService } from '../services/alarm-service.js'
 import { pushService } from '../services/push-service.js'
 
@@ -146,7 +146,7 @@ export class TaskAlarmsConfigView extends LitElement {
 
   constructor() {
     super()
-    this.settings = storageManager.getItem('settings:alerts', DEFAULT_ALERT_SETTINGS)
+    this.settings = getStorageItem('settings:alerts', DEFAULT_ALERT_SETTINGS)
     this.pushPermission = 'default'
     this.isSubscribedToPush = false
     this.vapidKey = ''
@@ -272,18 +272,18 @@ export class TaskAlarmsConfigView extends LitElement {
 
   _onToneChange(e) {
     this.settings = { ...this.settings, soundTone: e.target.value }
-    storageManager.setItem('settings:alerts', this.settings)
+    setStorageItem('settings:alerts', this.settings)
   }
 
   _onVolumeChange(e) {
     this.settings = { ...this.settings, volume: Number(e.target.value) }
-    storageManager.setItem('settings:alerts', this.settings)
+    setStorageItem('settings:alerts', this.settings)
     this.requestUpdate()
   }
 
   _onTriggerChange(e) {
     this.settings = { ...this.settings, defaultTriggerMinutes: Number(e.target.value) }
-    storageManager.setItem('settings:alerts', this.settings)
+    setStorageItem('settings:alerts', this.settings)
   }
 
   _testSound() {

@@ -1,5 +1,5 @@
 import { LitElement, html, css } from 'lit'
-import { storageManager } from '../services/storage.js'
+import { getStorageItem, setStorageItem } from '../services/storage.js'
 
 export class TaskIntegrationsView extends LitElement {
   static properties = {
@@ -153,11 +153,11 @@ export class TaskIntegrationsView extends LitElement {
 
   constructor() {
     super()
-    this.backendUrl = storageManager.getItem('config:backend_url', 'https://dev/api/tasktoday')
-    this.googleConnected = storageManager.getItem('sync:google_connected', false)
-    this.msConnected = storageManager.getItem('sync:ms_connected', false)
+    this.backendUrl = getStorageItem('config:backend_url', 'https://dev/api/tasktoday')
+    this.googleConnected = getStorageItem('sync:google_connected', false)
+    this.msConnected = getStorageItem('sync:ms_connected', false)
     this.syncStatus = ''
-    this.lastSyncTime = storageManager.getItem('sync:last_synced', null)
+    this.lastSyncTime = getStorageItem('sync:last_synced', null)
   }
 
   render() {
@@ -257,7 +257,7 @@ export class TaskIntegrationsView extends LitElement {
 
   _toggleGoogle() {
     this.googleConnected = !this.googleConnected
-    storageManager.setItem('sync:google_connected', this.googleConnected)
+    setStorageItem('sync:google_connected', this.googleConnected)
     if (this.googleConnected) {
       alert('Simulação de autorização OAuth2 Google Tasks concluída!')
     }
@@ -265,15 +265,15 @@ export class TaskIntegrationsView extends LitElement {
 
   _toggleMS() {
     this.msConnected = !this.msConnected
-    storageManager.setItem('sync:ms_connected', this.msConnected)
+    setStorageItem('sync:ms_connected', this.msConnected)
     if (this.msConnected) {
       alert('Simulação de autorização Microsoft Graph / To Do concluída!')
     }
   }
 
   _saveBackendUrl() {
-    storageManager.setItem('config:backend_url', this.backendUrl)
-    storageManager.setItem('sync:last_synced', new Date().toISOString())
+    setStorageItem('config:backend_url', this.backendUrl)
+    setStorageItem('sync:last_synced', new Date().toISOString())
     this.lastSyncTime = new Date().toISOString()
     alert('Configuração de endpoint REST atualizada!')
   }

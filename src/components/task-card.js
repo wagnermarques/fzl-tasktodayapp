@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit'
 import { unsafeHTML } from 'lit/directives/unsafe-html.js'
 import './task-deadline-badge.js'
-import { DescriptionSanitizer } from '../utils/html-sanitize.js'
+import { sanitizeDescriptionHtml } from '../utils/html-sanitize.js'
 
 export class TaskCard extends LitElement {
   static properties = {
@@ -204,7 +204,7 @@ export class TaskCard extends LitElement {
               <h3 class="title">${this.task.title}</h3>
               <span class="priority-pill priority-${this.task.priority || 'MEDIA'}">${this.task.priority || 'MÉDIA'}</span>
             </div>
-            ${this.task.description ? html`<div class="description">${unsafeHTML(DescriptionSanitizer.sanitize(this.task.description))}</div>` : ''}
+            ${this.task.description ? html`<div class="description">${unsafeHTML(sanitizeDescriptionHtml(this.task.description))}</div>` : ''}
             
             <div class="meta-row">
               <span class="category-chip" style="background-color: ${catColor}">

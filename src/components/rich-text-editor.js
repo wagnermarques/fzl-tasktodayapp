@@ -1,6 +1,6 @@
 import { LitElement, html, css } from 'lit'
 import { unsafeHTML } from 'lit/directives/unsafe-html.js'
-import { DescriptionSanitizer } from '../utils/html-sanitize.js'
+import { sanitizeDescriptionHtml } from '../utils/html-sanitize.js'
 
 /**
  * Editor de texto rico (WYSIWYG) com visual Material Design 3,
@@ -133,7 +133,7 @@ export class RichTextEditor extends LitElement {
   }
 
   _syncEditorFromValue() {
-    const clean = DescriptionSanitizer.sanitize(this.value)
+    const clean = sanitizeDescriptionHtml(this.value)
     if (this._editorEl.innerHTML !== clean) {
       this._editorEl.innerHTML = clean
     }
@@ -191,7 +191,7 @@ export class RichTextEditor extends LitElement {
   }
 
   _onInput() {
-    const clean = DescriptionSanitizer.sanitize(this._editorEl.innerHTML)
+    const clean = sanitizeDescriptionHtml(this._editorEl.innerHTML)
     this.value = clean
     this.dispatchEvent(new CustomEvent('value-changed', { detail: { value: clean }, bubbles: true, composed: true }))
   }

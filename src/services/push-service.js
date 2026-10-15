@@ -2,32 +2,32 @@
  * Serviço de Gerenciamento de Notificações Web Push & Chaves VAPID
  */
 
-import { storageManager } from './storage.js'
-import { apiClient } from './api-client.js'
+import { setStorageItem } from './storage.js'
+import { apiFetch } from './api-client.js'
 import { syncService } from './sync-service.js'
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
+function sameKey(buffer, bytes) {
+  if (!buffer) return false
+  const current = new Uint8Array(buffer)
+  return current.length === bytes.length && current.every((b, i) => b === bytes[i])
+}
 
 class PushService {
   constructor() {
     this.subscription = null
     // Chave pública VAPID do servidor (GET /push/vapid-public-key); carregada sob demanda
     this.vapidPublicKey = null
-  }
-
-  _urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
-    const rawData = window.atob(base64)
-    const outputArray = new Uint8Array(rawData.length)
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i)
-    }
-    return outputArray
-  }
-
-  _sameKey(buffer, bytes) {
-    if (!buffer) return false
-    const current = new Uint8Array(buffer)
-    return current.length === bytes.length && current.every((b, i) => b === bytes[i])
   }
 
   /**
@@ -37,7 +37,7 @@ class PushService {
   async fetchVapidPublicKey() {
     if (this.vapidPublicKey) return this.vapidPublicKey
 
-    const { publicKey } = await apiClient.fetch('/push/vapid-public-key', { auth: false })
+    const { publicKey } = await apiFetch('/push/vapid-public-key', { auth: false })
     this.vapidPublicKey = publicKey
     return publicKey
   }
@@ -45,7 +45,7 @@ class PushService {
   /** Registra a inscrição no servidor (idempotente por navegador); exige sessão. */
   async registerWithServer(subscription) {
     if (!subscription || !syncService.isActive()) return false
-    await apiClient.fetch('/push/subscribe', { method: 'POST', body: subscription.toJSON() })
+    await apiFetch('/push/subscribe', { method: 'POST', body: subscription.toJSON() })
     return true
   }
 
@@ -90,12 +90,12 @@ class PushService {
     try {
       const key = vapidKey || await this.fetchVapidPublicKey()
       const reg = await navigator.serviceWorker.ready
-      const convertedVapidKey = this._urlBase64ToUint8Array(key)
+      const convertedVapidKey = urlBase64ToUint8Array(key)
 
       // Uma inscrição feita com outra chave (ex.: a antiga chave de exemplo)
       // impede o subscribe() com a chave nova, então é descartada antes.
       const existing = await reg.pushManager.getSubscription()
-      if (existing && !this._sameKey(existing.options.applicationServerKey, convertedVapidKey)) {
+      if (existing && !sameKey(existing.options.applicationServerKey, convertedVapidKey)) {
         await existing.unsubscribe()
       }
 
@@ -105,7 +105,7 @@ class PushService {
       })
 
       this.subscription = subscription
-      storageManager.setItem('push:subscription', subscription.toJSON())
+      setStorageItem('push:subscription', subscription.toJSON())
       await this.registerWithServer(subscription)
 
       return subscription
@@ -122,7 +122,7 @@ class PushService {
     if (this.subscription) {
       await this.subscription.unsubscribe()
       this.subscription = null
-      storageManager.setItem('push:subscription', null)
+      setStorageItem('push:subscription', null)
       return true
     }
     return false
@@ -131,7 +131,7 @@ class PushService {
   async sendTestNotification(title = 'Task Today App — Teste', message = 'Notificação push funcionando com sucesso!') {
     // Com sessão e inscrição, o teste passa pelo servidor (caminho real do alarme)
     if (syncService.isActive() && await this.getExistingSubscription()) {
-      await apiClient.fetch('/push/test', { method: 'POST', body: { title, message } })
+      await apiFetch('/push/test', { method: 'POST', body: { title, message } })
       return
     }
     if (Notification.permission === 'granted') {
