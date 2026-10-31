@@ -15,10 +15,10 @@ import { isKeycloakConfigured } from './keycloak-provider.js'
 const OUTBOX_KEY = 'sync:outbox'
 const PULL_INTERVAL_MS = 60 * 1000
 
-const TASK_CREATE_FIELDS = ['id', 'title', 'description', 'categoryId', 'priority', 'status', 'deadline', 'alertType', 'triggerMinutes', 'isArchived']
-const TASK_UPDATE_FIELDS = ['title', 'description', 'categoryId', 'priority', 'status', 'deadline', 'alertType', 'triggerMinutes', 'isArchived', 'alarmFired']
-const CATEGORY_CREATE_FIELDS = ['id', 'name', 'color', 'icon', 'isNative']
-const CATEGORY_UPDATE_FIELDS = ['name', 'color', 'icon']
+const TASK_CREATE_FIELDS = ['id', 'kind', 'title', 'description', 'categoryId', 'priority', 'status', 'deadline', 'alertType', 'triggerMinutes', 'isArchived']
+const TASK_UPDATE_FIELDS = ['kind', 'title', 'description', 'categoryId', 'priority', 'status', 'deadline', 'alertType', 'triggerMinutes', 'isArchived', 'alarmFired']
+const CATEGORY_CREATE_FIELDS = ['id', 'name', 'color', 'icon', 'isNative', 'defaultKind']
+const CATEGORY_UPDATE_FIELDS = ['name', 'color', 'icon', 'defaultKind']
 
 function pick(obj, fields) {
   const out = {}

@@ -1,7 +1,10 @@
 import { LitElement, html, css } from 'lit'
+import '@fzl/webcomponents-lit/button'
+import '@fzl/webcomponents-lit/crumb'
 import { authService } from 'fzl-fund-appshell--lit'
 import { taskService } from '../services/task-service.js'
 import { isTaskTodayAdmin } from '../services/keycloak-provider.js'
+import { ITEM_KIND_TASK, ITEM_KIND_NOTE } from '../services/storage.js'
 
 const ICON_OPTIONS = [
   { value: 'label', label: 'Etiqueta' },
@@ -31,6 +34,7 @@ export class TaskCategoriesView extends LitElement {
     newCategoryName: { type: String },
     newCategoryColor: { type: String },
     newCategoryIcon: { type: String },
+    newCategoryKind: { type: String },
     newCategoryNative: { type: Boolean },
     isAdmin: { type: Boolean },
     editing: { type: Object }
@@ -213,6 +217,28 @@ export class TaskCategoriesView extends LitElement {
       padding: 6px 12px;
       border-radius: 16px;
     }
+    .field-hint {
+      font-size: 0.8rem;
+      color: var(--md-sys-color-on-surface-variant, #49454f);
+      margin: 10px 0 0 0;
+    }
+    .kind-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-radius: 4px;
+      padding: 1px 5px;
+      margin-left: 6px;
+      background: var(--md-sys-color-tertiary, #7d5260);
+      color: var(--md-sys-color-on-tertiary, #ffffff);
+    }
+    .kind-chip md-icon {
+      font-size: 12px;
+    }
     .native-option {
       display: flex;
       align-items: center;
@@ -241,6 +267,7 @@ export class TaskCategoriesView extends LitElement {
     this.newCategoryName = ''
     this.newCategoryColor = '#6750a4'
     this.newCategoryIcon = 'label'
+    this.newCategoryKind = ITEM_KIND_TASK
     this.newCategoryNative = false
     this.isAdmin = false
     this.editing = null
@@ -267,6 +294,8 @@ export class TaskCategoriesView extends LitElement {
 
   render() {
     return html`
+      <fzl-lit-crumb .items=${[{ label: 'Início', href: '#/' }, { label: 'Categorias' }]} style="margin-bottom: 12px;"></fzl-lit-crumb>
+
       <div class="header">
         <h1 class="title"><md-icon>category</md-icon> Categorização Multiescopo (RF02)</h1>
         <p class="subtitle">Gerencie as categorias nativas do sistema e crie categorias personalizadas para organizar suas tarefas.</p>
@@ -308,10 +337,25 @@ export class TaskCategoriesView extends LitElement {
             </select>
           </div>
 
-          <button type="submit" class="btn-add">
+          <div class="form-field">
+            <label>Tipo de Item</label>
+            <select
+              .value=${this.newCategoryKind}
+              @change=${e => this.newCategoryKind = e.target.value}
+            >
+              <option value=${ITEM_KIND_TASK} ?selected=${this.newCategoryKind === ITEM_KIND_TASK}>Tarefas</option>
+              <option value=${ITEM_KIND_NOTE} ?selected=${this.newCategoryKind === ITEM_KIND_NOTE}>Anotações</option>
+            </select>
+          </div>
+
+          <fzl-lit-button variant="primary" size="md" @fzl-click=${(e) => e.target.closest('form')?.requestSubmit()}>
             <md-icon>add</md-icon> Adicionar
-          </button>
+          </fzl-lit-button>
         </form>
+        <p class="field-hint">
+          Em uma categoria de <strong>Anotações</strong> (ex.: "Anotação"), o formulário já abre no modo anotação:
+          só título e conteúdo, sem prazo, prioridade ou alarme.
+        </p>
         ${this.isAdmin ? html`
           <label class="native-option">
             <input
@@ -332,7 +376,14 @@ export class TaskCategoriesView extends LitElement {
                 <md-icon>${cat.icon || 'label'}</md-icon>
               </div>
               <div>
-                <div class="cat-name">${cat.name}</div>
+                <div class="cat-name">
+                  ${cat.name}
+                  ${cat.defaultKind === ITEM_KIND_NOTE ? html`
+                    <span class="kind-chip" title="Itens novos nesta categoria nascem como anotação">
+                      <md-icon>sticky_note_2</md-icon> Anotações
+                    </span>
+                  ` : ''}
+                </div>
                 <div class="cat-type">${cat.isNative ? 'Categoria Nativa' : 'Personalizada'}</div>
               </div>
             </div>
@@ -377,25 +428,39 @@ export class TaskCategoriesView extends LitElement {
           >
             ${iconOptions(e.icon)}
           </select>
+          <select
+            aria-label="Tipo de Item"
+            @change=${ev => this.editing = { ...this.editing, defaultKind: ev.target.value }}
+          >
+            <option value=${ITEM_KIND_TASK} ?selected=${e.defaultKind !== ITEM_KIND_NOTE}>Tarefas</option>
+            <option value=${ITEM_KIND_NOTE} ?selected=${e.defaultKind === ITEM_KIND_NOTE}>Anotações</option>
+          </select>
         </div>
         ${e.isNative ? html`<div class="cat-type">Categoria nativa: a alteração vale para todos os usuários.</div>` : ''}
         <div class="edit-actions">
-          <button type="button" class="btn-text" @click=${() => this.editing = null}>Cancelar</button>
-          <button type="submit" class="btn-add"><md-icon>check</md-icon> Salvar</button>
+          <fzl-lit-button variant="secondary" size="md" @fzl-click=${() => this.editing = null}>Cancelar</fzl-lit-button>
+          <fzl-lit-button variant="primary" size="md" @fzl-click=${(e) => e.target.closest('form')?.requestSubmit()}><md-icon>check</md-icon> Salvar</fzl-lit-button>
         </div>
       </form>
     `
   }
 
   _startEdit(cat) {
-    this.editing = { id: cat.id, name: cat.name, color: cat.color || '#6750a4', icon: cat.icon || 'label', isNative: cat.isNative }
+    this.editing = {
+      id: cat.id,
+      name: cat.name,
+      color: cat.color || '#6750a4',
+      icon: cat.icon || 'label',
+      defaultKind: cat.defaultKind === ITEM_KIND_NOTE ? ITEM_KIND_NOTE : ITEM_KIND_TASK,
+      isNative: cat.isNative
+    }
   }
 
   _saveEdit(e) {
     e.preventDefault()
-    const { id, name, color, icon } = this.editing
+    const { id, name, color, icon, defaultKind } = this.editing
     if (!name.trim()) return
-    taskService.updateCategory(id, { name: name.trim(), color, icon })
+    taskService.updateCategory(id, { name: name.trim(), color, icon, defaultKind })
     this.editing = null
   }
 
@@ -407,10 +472,12 @@ export class TaskCategoriesView extends LitElement {
       name: this.newCategoryName.trim(),
       color: this.newCategoryColor,
       icon: this.newCategoryIcon,
+      defaultKind: this.newCategoryKind,
       isNative: this.newCategoryNative
     })
 
     this.newCategoryName = ''
+    this.newCategoryKind = ITEM_KIND_TASK
     this.newCategoryNative = false
   }
 

@@ -1,8 +1,11 @@
 import { html } from 'lit'
 import './styles/app.css'
 import 'fzl-fund-appshell--lit/styles/theme.css'
+import '@fzl/design-tokens/tokens.css'
+import '@fzl/webcomponents-lit'
 import { createAppShell, pattern } from 'fzl-fund-appshell--lit'
 import { keycloakProvider, isKeycloakConfigured } from './services/keycloak-provider.js'
+import { ITEM_KIND_NOTE } from './services/storage.js'
 
 // Views
 import './views/task-today-home-view.js'
@@ -27,10 +30,24 @@ createAppShell({
           categoryId: 'all',
           priority: 'all',
           status: filter === 'archived' ? 'all' : 'PENDENTE',
+          kind: 'all',
           includeArchived: filter === 'archived' ? 'only' : false,
           searchQuery: ''
         }}></task-today-home-view>`
       }
+    },
+    {
+      name: 'anotacoes',
+      match: pattern('/anotacoes'),
+      render: () => html`<task-today-home-view .filterParams=${{
+        deadlineScope: 'all',
+        categoryId: 'all',
+        priority: 'all',
+        status: 'all',
+        kind: ITEM_KIND_NOTE,
+        includeArchived: false,
+        searchQuery: ''
+      }}></task-today-home-view>`
     },
     {
       name: 'categorias',
@@ -59,6 +76,13 @@ createAppShell({
           { label: 'Vencem Hoje', href: '#/tarefas/today', icon: 'today' },
           { label: 'Esta Semana', href: '#/tarefas/this_week', icon: 'date_range' },
           { label: 'Arquivadas', href: '#/tarefas/archived', icon: 'archive' }
+        ]
+      },
+      {
+        id: 'anotacoes-section',
+        label: 'Anotações',
+        items: [
+          { label: 'Todas as Anotações', href: '#/anotacoes', icon: 'sticky_note_2' }
         ]
       },
       {

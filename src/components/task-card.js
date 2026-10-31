@@ -1,7 +1,9 @@
 import { LitElement, html, css } from 'lit'
 import { unsafeHTML } from 'lit/directives/unsafe-html.js'
+import '@fzl/webcomponents-lit/button'
 import './task-deadline-badge.js'
 import { DescriptionSanitizer } from '../utils/html-sanitize.js'
+import { isNote } from '../services/storage.js'
 
 export class TaskCard extends LitElement {
   static properties = {
@@ -179,57 +181,95 @@ export class TaskCard extends LitElement {
       align-items: center;
       gap: 2px;
     }
+    /* Anotação: aspecto de papel, sem faixa de conclusão nem prazo */
+    .card.note {
+      background-color: var(--md-sys-color-tertiary-container, #ffd8e4);
+      border-color: var(--md-sys-color-tertiary, #7d5260);
+      border-left-width: 4px;
+    }
+    .note-icon {
+      color: var(--md-sys-color-tertiary, #7d5260);
+      margin-top: 2px;
+      display: flex;
+    }
+    .kind-pill {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: var(--md-sys-color-tertiary, #7d5260);
+      color: var(--md-sys-color-on-tertiary, #ffffff);
+      white-space: nowrap;
+    }
+    .actions-row.note-actions {
+      justify-content: flex-end;
+    }
   `
 
   render() {
     if (!this.task) return html``
 
-    const isCompleted = this.task.status === 'CONCLUIDA'
+    const asNote = isNote(this.task)
+    const isCompleted = !asNote && this.task.status === 'CONCLUIDA'
     const catColor = this.category?.color || '#6750a4'
     const catIcon = this.category?.icon || 'label'
     const catName = this.category?.name || 'Geral'
 
     return html`
-      <div class="card ${isCompleted ? 'completed' : ''}">
+      <div class="card ${isCompleted ? 'completed' : ''} ${asNote ? 'note' : ''}">
         <div class="header-row">
-          <button
-            class="checkbox-btn"
-            @click=${this._toggleComplete}
-            title=${isCompleted ? 'Marcar como pendente' : 'Concluir tarefa'}
-          >
-            <md-icon>${isCompleted ? 'check_box' : 'check_box_outline_blank'}</md-icon>
-          </button>
+          ${asNote ? html`
+            <span class="note-icon" title="Anotação">
+              <md-icon>sticky_note_2</md-icon>
+            </span>
+          ` : html`
+            <button
+              class="checkbox-btn"
+              @click=${this._toggleComplete}
+              title=${isCompleted ? 'Marcar como pendente' : 'Concluir tarefa'}
+            >
+              <md-icon>${isCompleted ? 'check_box' : 'check_box_outline_blank'}</md-icon>
+            </button>
+          `}
           <div class="content-area">
             <div class="title-line">
               <h3 class="title">${this.task.title}</h3>
-              <span class="priority-pill priority-${this.task.priority || 'MEDIA'}">${this.task.priority || 'MÉDIA'}</span>
+              ${asNote
+                ? html`<span class="kind-pill">Anotação</span>`
+                : html`<span class="priority-pill priority-${this.task.priority || 'MEDIA'}">${this.task.priority || 'MÉDIA'}</span>`}
             </div>
             ${this.task.description ? html`<div class="description">${unsafeHTML(DescriptionSanitizer.sanitize(this.task.description))}</div>` : ''}
-            
+
             <div class="meta-row">
               <span class="category-chip" style="background-color: ${catColor}">
                 <md-icon>${catIcon}</md-icon>
                 ${catName}
               </span>
-              <task-deadline-badge
-                .deadline=${this.task.deadline}
-                .status=${this.task.status}
-              ></task-deadline-badge>
-              ${this.task.alertType === 'sound' ? html`
-                <span class="action-btn" title="Alarme sonoro ativo">
-                  <md-icon style="font-size: 13px;">volume_up</md-icon> ${this.task.triggerMinutes}m
-                </span>
-              ` : ''}
+              ${asNote ? '' : html`
+                <task-deadline-badge
+                  .deadline=${this.task.deadline}
+                  .status=${this.task.status}
+                ></task-deadline-badge>
+                ${this.task.alertType === 'sound' ? html`
+                  <span class="action-btn" title="Alarme sonoro ativo">
+                    <md-icon style="font-size: 13px;">volume_up</md-icon> ${this.task.triggerMinutes}m
+                  </span>
+                ` : ''}
+              `}
             </div>
           </div>
         </div>
 
-        <div class="actions-row">
-          <div class="quick-reschedule">
-            <span style="font-size: 0.72rem; color: var(--md-sys-color-outline);">Adiar:</span>
-            <button class="action-btn" @click=${() => this._reschedule(1)} title="Adiar 1 dia">+1 dia</button>
-            <button class="action-btn" @click=${() => this._reschedule(7)} title="Adiar 1 semana">+7 dias</button>
-          </div>
+        <div class="actions-row ${asNote ? 'note-actions' : ''}">
+          ${asNote ? '' : html`
+            <div class="quick-reschedule">
+              <span style="font-size: 0.72rem; color: var(--md-sys-color-outline);">Adiar:</span>
+              <fzl-lit-button size="sm" variant="secondary" @fzl-click=${() => this._reschedule(1)} title="Adiar 1 dia">+1 dia</fzl-lit-button>
+              <fzl-lit-button size="sm" variant="secondary" @fzl-click=${() => this._reschedule(7)} title="Adiar 1 semana">+7 dias</fzl-lit-button>
+            </div>
+          `}
           <div class="right-actions">
             <button class="action-btn icon-only" @click=${this._editTask} title="Editar">
               <md-icon style="font-size: 18px;">edit</md-icon>

@@ -1,4 +1,6 @@
 import { LitElement, html, css } from 'lit'
+import '@fzl/webcomponents-lit/button'
+import '@fzl/webcomponents-lit/crumb'
 import { storageManager, DEFAULT_ALERT_SETTINGS } from '../services/storage.js'
 import { alarmService } from '../services/alarm-service.js'
 import { pushService } from '../services/push-service.js'
@@ -167,6 +169,8 @@ export class TaskAlarmsConfigView extends LitElement {
 
   render() {
     return html`
+      <fzl-lit-crumb .items=${[{ label: 'Início', href: '#/' }, { label: 'Alertas & Push' }]} style="margin-bottom: 12px;"></fzl-lit-crumb>
+
       <div class="header">
         <h1 class="title"><md-icon>notifications_active</md-icon> Configuração de Alertas e Alarmes (RF04 & RF08)</h1>
         <p class="subtitle">Personalize os avisos sonoros gerados via Web Audio API e ative notificações push em tempo real.</p>
@@ -205,9 +209,9 @@ export class TaskAlarmsConfigView extends LitElement {
             />
           </div>
 
-          <button class="btn btn-secondary" style="margin-top: 18px;" @click=${this._testSound}>
+          <fzl-lit-button variant="secondary" size="md" style="margin-top: 18px;" @fzl-click=${this._testSound}>
             <md-icon>play_arrow</md-icon> Testar Som
-          </button>
+          </fzl-lit-button>
         </div>
 
         <div class="row">
@@ -243,18 +247,18 @@ export class TaskAlarmsConfigView extends LitElement {
 
         <div class="row">
           ${this.isSubscribedToPush ? html`
-            <button class="btn btn-secondary" @click=${this._unsubscribePush}>
+            <fzl-lit-button variant="secondary" size="md" @fzl-click=${this._unsubscribePush}>
               <md-icon>notifications_off</md-icon> Desativar Push
-            </button>
+            </fzl-lit-button>
           ` : html`
-            <button class="btn btn-primary" @click=${this._subscribePush}>
+            <fzl-lit-button variant="primary" size="md" @fzl-click=${this._subscribePush}>
               <md-icon>notifications_active</md-icon> Ativar Inscrição Web Push
-            </button>
+            </fzl-lit-button>
           `}
 
-          <button class="btn btn-success" @click=${this._testPushNotification}>
+          <fzl-lit-button variant="primary" size="md" @fzl-click=${this._testPushNotification}>
             <md-icon>notifications</md-icon> Enviar Notificação de Teste
-          </button>
+          </fzl-lit-button>
         </div>
 
         <div class="form-group" style="margin-top: 10px;">

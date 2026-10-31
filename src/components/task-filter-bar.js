@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit'
+import { ITEM_KIND_TASK, ITEM_KIND_NOTE } from '../services/storage.js'
 
 export class TaskFilterBar extends LitElement {
   static properties = {
@@ -7,12 +8,17 @@ export class TaskFilterBar extends LitElement {
     activeCategory: { type: String },
     activePriority: { type: String },
     activeStatus: { type: String },
+    activeKind: { type: String },
     searchQuery: { type: String }
   }
 
   static styles = css`
     :host {
       display: block;
+    }
+    /* display: flex nas linhas de filtro venceria o atributo hidden */
+    [hidden] {
+      display: none !important;
     }
     .filter-container {
       display: flex;
@@ -104,13 +110,17 @@ export class TaskFilterBar extends LitElement {
     this.activeCategory = 'all'
     this.activePriority = 'all'
     this.activeStatus = 'all'
+    this.activeKind = 'all'
     this.searchQuery = ''
   }
 
   render() {
+    // Prazo, prioridade e status são filtros de tarefa: não fazem sentido só com anotações
+    const onlyNotes = this.activeKind === ITEM_KIND_NOTE
+
     return html`
       <div class="filter-container">
-        <div class="chips-row">
+        <div class="chips-row" ?hidden=${onlyNotes}>
           <button
             class="filter-chip ${this.activeDeadline === 'all' ? 'active' : ''}"
             @click=${() => this._setDeadline('all')}
@@ -139,6 +149,16 @@ export class TaskFilterBar extends LitElement {
 
         <div class="dropdowns-row">
           <div class="select-wrapper">
+            <label>Tipo:</label>
+            <!-- ?selected porque o .value do select é aplicado antes do value das options -->
+            <select .value=${this.activeKind} @change=${this._onKindChange}>
+              <option value="all" ?selected=${this.activeKind === 'all'}>Tarefas e Anotações</option>
+              <option value=${ITEM_KIND_TASK} ?selected=${this.activeKind === ITEM_KIND_TASK}>Só Tarefas</option>
+              <option value=${ITEM_KIND_NOTE} ?selected=${this.activeKind === ITEM_KIND_NOTE}>Só Anotações</option>
+            </select>
+          </div>
+
+          <div class="select-wrapper">
             <label>Categoria:</label>
             <select .value=${this.activeCategory} @change=${this._onCategoryChange}>
               <option value="all">Todas as Categorias</option>
@@ -148,7 +168,7 @@ export class TaskFilterBar extends LitElement {
             </select>
           </div>
 
-          <div class="select-wrapper">
+          <div class="select-wrapper" ?hidden=${onlyNotes}>
             <label>Prioridade:</label>
             <select .value=${this.activePriority} @change=${this._onPriorityChange}>
               <option value="all">Todas</option>
@@ -163,8 +183,10 @@ export class TaskFilterBar extends LitElement {
             <label>Status:</label>
             <select .value=${this.activeStatus} @change=${this._onStatusChange}>
               <option value="all">Todos (Não Arquivadas)</option>
-              <option value="PENDENTE">Pendentes</option>
-              <option value="CONCLUIDA">Concluídas</option>
+              ${onlyNotes ? '' : html`
+                <option value="PENDENTE">Pendentes</option>
+                <option value="CONCLUIDA">Concluídas</option>
+              `}
               <option value="ARQUIVADAS">Arquivadas</option>
             </select>
           </div>
@@ -191,6 +213,17 @@ export class TaskFilterBar extends LitElement {
     this._emitFilterChange()
   }
 
+  /** Ao olhar só anotações, zera os filtros de tarefa para a lista não vir vazia. */
+  _onKindChange(e) {
+    this.activeKind = e.target.value
+    if (this.activeKind === ITEM_KIND_NOTE) {
+      this.activeDeadline = 'all'
+      this.activePriority = 'all'
+      if (this.activeStatus !== 'ARQUIVADAS') this.activeStatus = 'all'
+    }
+    this._emitFilterChange()
+  }
+
   _onPriorityChange(e) {
     this.activePriority = e.target.value
     this._emitFilterChange()
@@ -213,6 +246,7 @@ export class TaskFilterBar extends LitElement {
           deadlineScope: this.activeDeadline,
           categoryId: this.activeCategory,
           priority: this.activePriority,
+          kind: this.activeKind,
           status: this.activeStatus === 'ARQUIVADAS' ? 'all' : this.activeStatus,
           includeArchived: this.activeStatus === 'ARQUIVADAS' ? 'only' : false,
           searchQuery: this.searchQuery

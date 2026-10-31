@@ -50,6 +50,7 @@ class StorageManager {
       const sampleTasks = [
         {
           id: 'task-sample-1',
+          kind: ITEM_KIND_TASK,
           title: 'Revisar módulo de Arquitetura Apache Camel',
           description: 'Concluir a leitura dos bundles de integração e rotas REST do Apache Karaf.',
           categoryId: 'cat-cursos',
@@ -64,6 +65,7 @@ class StorageManager {
         },
         {
           id: 'task-sample-2',
+          kind: ITEM_KIND_TASK,
           title: 'Pagamento da fatura de serviços Cloud',
           description: 'Efetuar pagamento da infraestrutura via aplicativo do banco.',
           categoryId: 'cat-financeira',
@@ -78,6 +80,7 @@ class StorageManager {
         },
         {
           id: 'task-sample-3',
+          kind: ITEM_KIND_TASK,
           title: 'Comprar itens de mercado para a semana',
           description: 'Frutas, vegetais e mantimentos para a rotina diária.',
           categoryId: 'cat-cotidianas',
@@ -89,6 +92,21 @@ class StorageManager {
           isArchived: false,
           createdAt: now.toISOString(),
           updatedAt: now.toISOString()
+        },
+        {
+          id: 'note-sample-1',
+          kind: ITEM_KIND_NOTE,
+          title: 'Ideias para a próxima sprint',
+          description: 'Modo calendário, subtarefas e exportação em PDF. Anotação não tem prazo nem alarme.',
+          categoryId: 'cat-pessoais',
+          priority: null,
+          status: null,
+          deadline: null,
+          alertType: 'none',
+          triggerMinutes: null,
+          isArchived: false,
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString()
         }
       ]
       this.setItem('tasks', sampleTasks)
@@ -96,12 +114,19 @@ class StorageManager {
   }
 }
 
+// Tipos de item: a tarefa tem prazo, prioridade e alarme; a anotação é só título e conteúdo
+export const ITEM_KIND_TASK = 'TAREFA'
+export const ITEM_KIND_NOTE = 'ANOTACAO'
+
+/** Itens gravados antes da distinção não têm `kind`: são tarefas. */
+export const isNote = item => item?.kind === ITEM_KIND_NOTE
+
 // Categorias Nativas Obrigatórias (RF02)
 export const NATIVE_CATEGORIES = [
-  { id: 'cat-cursos', name: 'Cursos', color: '#1976d2', icon: 'school', isNative: true },
-  { id: 'cat-cotidianas', name: 'Tarefas Cotidianas', color: '#388e3c', icon: 'routine', isNative: true },
-  { id: 'cat-financeira', name: 'Financeira', color: '#f57c00', icon: 'payments', isNative: true },
-  { id: 'cat-pessoais', name: 'Pessoais', color: '#7b1fa2', icon: 'person', isNative: true }
+  { id: 'cat-cursos', name: 'Cursos', color: '#1976d2', icon: 'school', isNative: true, defaultKind: ITEM_KIND_TASK },
+  { id: 'cat-cotidianas', name: 'Tarefas Cotidianas', color: '#388e3c', icon: 'routine', isNative: true, defaultKind: ITEM_KIND_TASK },
+  { id: 'cat-financeira', name: 'Financeira', color: '#f57c00', icon: 'payments', isNative: true, defaultKind: ITEM_KIND_TASK },
+  { id: 'cat-pessoais', name: 'Pessoais', color: '#7b1fa2', icon: 'person', isNative: true, defaultKind: ITEM_KIND_TASK }
 ]
 
 // Configurações Padrão de Alertas (RF04)

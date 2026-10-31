@@ -2,10 +2,47 @@
  * Serviço de Gerenciamento de Tarefas e Filtros Avançados (RF01, RF03, RF06, RF07)
  */
 
-import { storageManager, NATIVE_CATEGORIES } from './storage.js'
+import { storageManager, NATIVE_CATEGORIES, ITEM_KIND_TASK, ITEM_KIND_NOTE, isNote } from './storage.js'
 import { alarmService } from './alarm-service.js'
 import { syncService } from './sync-service.js'
 import { onSignOut, isTaskTodayAdmin } from './keycloak-provider.js'
+
+// `0` é uma opção válida de gatilho ("no momento exato"), por isso não usamos `|| 15`;
+// ausente (anotação) cai no padrão
+function normalizeTriggerMinutes(value, fallback = 15) {
+  if (value === null || value === undefined || value === '') return fallback
+  const minutes = Number(value)
+  return Number.isFinite(minutes) && minutes >= 0 ? minutes : fallback
+}
+
+/**
+ * Mantém as invariantes de cada tipo de item: a tarefa tem prazo, prioridade, status e
+ * alarme; a anotação é só título, conteúdo e categoria. Vale também na troca de tipo
+ * durante a edição, nos dois sentidos.
+ */
+function applyKindRules(item) {
+  if (isNote(item)) {
+    return {
+      ...item,
+      kind: ITEM_KIND_NOTE,
+      priority: null,
+      status: null,
+      deadline: null,
+      alertType: 'none',
+      triggerMinutes: null, // nulo, não 0: `0` significaria alarme no instante do prazo
+      completedAt: null,
+      alarmFired: false
+    }
+  }
+  return {
+    ...item,
+    kind: ITEM_KIND_TASK,
+    priority: item.priority || 'MEDIA',
+    status: item.status || 'PENDENTE',
+    alertType: item.alertType || 'sound',
+    triggerMinutes: normalizeTriggerMinutes(item.triggerMinutes)
+  }
+}
 
 class TaskService {
   constructor() {
@@ -19,8 +56,8 @@ class TaskService {
     // O servidor é a referência depois de cada sincronização (inclusive alarmFired,
     // para o alarme local não tocar de novo o que o push do servidor já avisou)
     syncService.onPulled(({ tasks, categories }) => {
-      storageManager.setItem('tasks', tasks)
-      storageManager.setItem('categories', categories)
+      storageManager.setItem('tasks', this._keepLocalKinds(tasks, this.getTasks(), 'kind'))
+      storageManager.setItem('categories', this._keepLocalKinds(categories, this.getCategories(), 'defaultKind'))
       this._notify()
     })
     // Os dados locais são do usuário que está saindo
@@ -31,6 +68,20 @@ class TaskService {
       this._notify()
     })
     syncService.start()
+  }
+
+  /**
+   * Enquanto o back-end não persistir `kind`/`defaultKind`, mantém o tipo que já está
+   * local para a anotação não voltar do servidor como tarefa.
+   */
+  _keepLocalKinds(incoming, local, field) {
+    if (!Array.isArray(incoming)) return incoming
+    const localById = new Map(local.map(item => [item.id, item]))
+    return incoming.map(item => {
+      if (item[field]) return item
+      const previous = localById.get(item.id)
+      return previous?.[field] ? { ...item, [field]: previous[field] } : item
+    })
   }
 
   subscribe(listener) {
@@ -64,10 +115,14 @@ class TaskService {
   addCategory(category) {
     const cats = this.getCategories()
     const newCat = {
-      id: category.id || `cat-${Date.now()}`,
+      // O sufixo aleatório evita id repetido em criações no mesmo milissegundo,
+      // que no servidor viraria uma categoria só (o id é a chave da sincronização)
+      id: category.id || `cat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: category.name,
       color: category.color || '#1976d2',
       icon: category.icon || 'folder',
+      // Tipo de item que o formulário já abre selecionado nesta categoria
+      defaultKind: category.defaultKind === ITEM_KIND_NOTE ? ITEM_KIND_NOTE : ITEM_KIND_TASK,
       // Categoria nativa (visível a todos os usuários) só para o administrador
       isNative: Boolean(category.isNative) && isTaskTodayAdmin(),
       createdAt: new Date().toISOString()
@@ -88,9 +143,9 @@ class TaskService {
     const idx = cats.findIndex(c => c.id === categoryId)
     if (idx === -1 || !this.canManageCategory(cats[idx])) return null
 
-    const { name, color, icon } = patch
+    const { name, color, icon, defaultKind } = patch
     const changes = Object.fromEntries(
-      Object.entries({ name, color, icon }).filter(([, v]) => v !== undefined)
+      Object.entries({ name, color, icon, defaultKind }).filter(([, v]) => v !== undefined)
     )
     cats[idx] = { ...cats[idx], ...changes }
     this.saveCategories(cats)
@@ -111,13 +166,24 @@ class TaskService {
     syncService.categoryDeleted(categoryId)
   }
 
+  /** Tipo de item sugerido pela categoria (ex.: uma categoria "Anotações"). */
+  kindForCategory(categoryId) {
+    const category = this.getCategories().find(c => c.id === categoryId)
+    return category?.defaultKind === ITEM_KIND_NOTE ? ITEM_KIND_NOTE : ITEM_KIND_TASK
+  }
+
   /**
-   * RF01: Cadastro de Tarefa
+   * RF01: Cadastro de Tarefa ou de Anotação, conforme `kind`
    */
   createTask(taskData) {
     const tasks = this.getTasks()
-    const newTask = {
-      id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+    const kind = taskData.kind === ITEM_KIND_NOTE ? ITEM_KIND_NOTE : ITEM_KIND_TASK
+    const prefix = kind === ITEM_KIND_NOTE ? 'note' : 'task'
+    const now = new Date().toISOString()
+
+    const newTask = applyKindRules({
+      id: `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      kind,
       title: taskData.title.trim(),
       description: taskData.description || '',
       categoryId: taskData.categoryId || 'cat-cotidianas',
@@ -125,13 +191,13 @@ class TaskService {
       status: taskData.status || 'PENDENTE',   // 'PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDA'
       deadline: taskData.deadline ? new Date(taskData.deadline).toISOString() : null,
       alertType: taskData.alertType || 'sound', // 'sound', 'notification', 'none'
-      triggerMinutes: Number(taskData.triggerMinutes) || 15,
+      triggerMinutes: normalizeTriggerMinutes(taskData.triggerMinutes),
       isArchived: false,
       completedAt: null,
       alarmFired: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
+      createdAt: now,
+      updatedAt: now
+    })
 
     tasks.unshift(newTask)
     storageManager.setItem('tasks', tasks)
@@ -149,11 +215,11 @@ class TaskService {
     if (idx === -1) throw new Error('Tarefa não encontrada.')
 
     const current = tasks[idx]
-    const updated = {
+    const updated = applyKindRules({
       ...current,
       ...patch,
       updatedAt: new Date().toISOString()
-    }
+    })
 
     // Se mudou o deadline ou reabriu a tarefa, reseta o alarme disparado
     if (patch.deadline && patch.deadline !== current.deadline) {
@@ -168,8 +234,18 @@ class TaskService {
     tasks[idx] = updated
     storageManager.setItem('tasks', tasks)
     this._notify()
-    syncService.taskUpdated(taskId, patch)
+    // O servidor também precisa do que as regras do tipo ajustaram: ao virar anotação,
+    // prazo, prioridade, status e alarme são apagados
+    syncService.taskUpdated(taskId, { ...patch, ...this._kindDiff(current, updated) })
     return updated
+  }
+
+  _kindDiff(before, after) {
+    const diff = {}
+    for (const field of ['kind', 'priority', 'status', 'deadline', 'alertType', 'triggerMinutes', 'alarmFired']) {
+      if (after[field] !== before[field]) diff[field] = after[field]
+    }
+    return diff
   }
 
   /**
@@ -178,7 +254,7 @@ class TaskService {
   rescheduleTask(taskId, daysToAdd = 1) {
     const tasks = this.getTasks()
     const task = tasks.find(t => t.id === taskId)
-    if (!task) return
+    if (!task || isNote(task)) return // anotação não tem prazo para adiar
 
     const baseDate = task.deadline ? new Date(task.deadline) : new Date()
     const newDate = new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000)
@@ -226,7 +302,7 @@ class TaskService {
   toggleComplete(taskId) {
     const tasks = this.getTasks()
     const task = tasks.find(t => t.id === taskId)
-    if (!task) return
+    if (!task || isNote(task)) return // anotação não se conclui
 
     const newStatus = task.status === 'CONCLUIDA' ? 'PENDENTE' : 'CONCLUIDA'
     return this.updateTask(taskId, { status: newStatus })
@@ -240,6 +316,7 @@ class TaskService {
     categoryId = 'all',
     priority = 'all',
     status = 'all',       // 'PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDA', 'all'
+    kind = 'all',         // 'TAREFA', 'ANOTACAO', 'all'
     includeArchived = false,
     searchQuery = ''
   } = {}) {
@@ -254,6 +331,13 @@ class TaskService {
       // Arquivamento
       if (!includeArchived && task.isArchived) return false
       if (includeArchived === 'only' && !task.isArchived) return false
+
+      // Tipo de item (tarefa ou anotação)
+      if (kind !== 'all' && (isNote(task) ? ITEM_KIND_NOTE : ITEM_KIND_TASK) !== kind) return false
+
+      // Os filtros de prazo, prioridade e status são próprios de tarefa:
+      // a anotação só aparece quando nenhum deles está ativo
+      if (isNote(task) && (deadlineScope !== 'all' || priority !== 'all' || status !== 'all')) return false
 
       // Categoria
       if (categoryId !== 'all' && task.categoryId !== categoryId) return false
@@ -294,7 +378,10 @@ class TaskService {
   }
 
   getMetrics() {
-    const tasks = this.getTasks().filter(t => !t.isArchived)
+    const items = this.getTasks().filter(t => !t.isArchived)
+    // Os indicadores são de prazo e conclusão: anotação não entra
+    const tasks = items.filter(t => !isNote(t))
+    const notes = items.length - tasks.length
     const now = new Date()
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
@@ -318,7 +405,7 @@ class TaskService {
       }
     }
 
-    return { total: tasks.length, overdue, today, thisWeek, completed }
+    return { total: tasks.length, overdue, today, thisWeek, completed, notes }
   }
 
   _initAlarmChecker() {
@@ -327,7 +414,7 @@ class TaskService {
       const now = new Date().getTime()
 
       for (const task of tasks) {
-        if (task.status === 'CONCLUIDA' || task.isArchived || task.alarmFired || !task.deadline) {
+        if (isNote(task) || task.status === 'CONCLUIDA' || task.isArchived || task.alarmFired || !task.deadline) {
           continue
         }
         const deadlineTime = new Date(task.deadline).getTime()

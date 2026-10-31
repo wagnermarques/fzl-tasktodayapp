@@ -8,7 +8,7 @@ Documento de acompanhamento do ciclo de vida, entregas realizadas e próximas et
 
 - **Nome**: Task Today App (`fzl-tasktodayapp`)
 - **Tipo**: Progressive Web App (PWA) / Single Page Application (SPA)
-- **Base UI**: Lit (Web Components nativos) + Material 3 Design (`@material/web`) + `fzl-fund-appshell--lit`
+- **Base UI**: Lit (Web Components nativos) + Material 3 Design (`@material/web`) + `fzl-fund-appshell--lit` (Monorepo `fzl-fund-ui`) + `@fzl/webcomponents-lit` + `@fzl/design-tokens`
 - **Back-end de Apoio**: Stack `fzlbpms` (Apache Karaf OSGi + Apache Camel REST Routes + Keycloak JWT + PostgreSQL)
 - **Hospedagem / CI/CD**: GitLab Pages via `.gitlab-ci.yml`
 
@@ -26,8 +26,9 @@ Documento de acompanhamento do ciclo de vida, entregas realizadas e próximas et
 
 ### Fase 1: Fundação & Scaffolding do Front-end (Concluída ✅)
 - [x] Inicialização do repositório Git e estrutura de diretórios.
-- [x] Integração do submódulo `fzl-fund-appshell--lit` (`git@github.com:wagnermarques/fzl-fund-appshell--lit.git`).
-- [x] Configuração do `package.json` com npm workspaces e dependências peer (`lit`, `@material/web`, `vite`, `vite-plugin-pwa`, `keycloak-js`).
+- [x] Migração do submódulo para o monorepo `fzl-fund-ui` (`git@github.com:wagnermarques/fzl-fund-ui.git`), unificando o appshell (`appshell-lit`), web components (`@fzl/webcomponents-lit`) e design tokens (`@fzl/design-tokens`).
+- [x] Configuração do `package.json` com scripts automatizados de links e compilação dos componentes (`setup-links.mjs`, `build:ui`).
+- [x] Integração de Web Components padronizados (`<fzl-lit-button>`, `<fzl-lit-crumb>`) e tokens CSS (`--fzl-*`) com herança do tema Material 3.
 - [x] Configuração do `vite.config.js` com preset do AppShell e geração de Service Worker PWA (`sw.js`).
 - [x] Criação de assets estáticos PWA (ícones responsivos, manifest e `favicon.svg`).
 - [x] Configuração do pipeline `.gitlab-ci.yml` para deploy automatizado no GitLab Pages.
@@ -41,6 +42,13 @@ Documento de acompanhamento do ciclo de vida, entregas realizadas e próximas et
 - [x] **RF02 — Categorização Multiescopo**:
   - Categorias nativas integradas: *Cursos*, *Tarefas Cotidianas*, *Financeira*, *Pessoais*.
   - View [`<task-categories-view>`](src/views/task-categories-view.js) para criação de categorias dinâmicas com paleta de cores e ícones customizados.
+  - Cada categoria define o **Tipo de Item** padrão (*Tarefas* ou *Anotações*): numa categoria de anotações, o formulário já abre no modo anotação.
+- [x] **RF09 — Distinção entre Tarefa e Anotação (`kind`)**:
+  - Campo `kind` (`TAREFA` | `ANOTACAO`) em cada item, com seletor no [`<task-form-dialog>`](src/components/task-form-dialog.js); a conversão vale nos dois sentidos na edição.
+  - A anotação não tem prazo, prioridade, status nem alarme — as invariantes ficam em `applyKindRules` ([`task-service.js`](src/services/task-service.js)), então nem a edição nem a troca de tipo criam um estado inválido.
+  - [`<task-card>`](src/components/task-card.js) de anotação sem checkbox de conclusão, sem selo de prazo e sem "Adiar"; filtro **Tipo** na [`<task-filter-bar>`](src/components/task-filter-bar.js) e rota/menu `#/anotacoes`.
+  - Itens gravados antes desta versão não têm `kind` e seguem valendo como tarefa (sem migração destrutiva).
+  - Botão de adicionar virou um **`+` redondo**, com o rótulo acessível seguindo o tipo que vai ser criado.
 - [x] **RF03 — Filtragem Avançada e Visualização**:
   - Componente [`<task-filter-bar>`](src/components/task-filter-bar.js) com chips de foco em Deadline (*Atrasadas*, *Vencem Hoje*, *Esta Semana*, *Todas*).
   - Filtros combinados por Categoria, Prioridade, Status (*Pendentes*, *Concluídas*, *Arquivadas*) e busca textual instantânea.
@@ -86,6 +94,7 @@ Documento de acompanhamento do ciclo de vida, entregas realizadas e próximas et
 - [ ] Validação ponta a ponta com um usuário real do realm `fzlbpms` (login, CRUD sincronizado, alarme → push) e com `fzlbpmsadmin` (categorias nativas).
 - [ ] Build publicado (GitHub Pages) ainda usa o login local: `fzlbpms.local` só é acessível nesta máquina; falta um host público para o back-end.
 - [ ] Evitar alarme duplicado: por até 60 s após um push do servidor, o alarme local pode tocar de novo a mesma tarefa (até o próximo pull trazer `alarmFired`).
+- [ ] **Back-end ainda não conhece `kind`/`defaultKind`** (ver migração em [`docs/backend-karaf-camel-prompt.md`](docs/backend-karaf-camel-prompt.md)): o PWA já envia os dois campos e preserva o tipo local a cada pull, mas até as colunas existirem a distinção tarefa/anotação vive só no navegador — e, se o bundle recusar campo desconhecido, a alteração é descartada da fila (o dado local permanece).
 
 ---
 
@@ -110,7 +119,8 @@ Documento de acompanhamento do ciclo de vida, entregas realizadas e próximas et
 
 | Comando | Descrição |
 |---|---|
-| `npm run dev` | Inicia o servidor de desenvolvimento Vite na porta `3030`. |
-| `npm run build` | Executa o build de produção com empacotamento PWA em `dist/`. |
+| `npm run build:ui` | Compila os tokens e web components Lit dentro do submódulo `fzl-fund-ui`. |
+| `npm run dev` | Compila os web components (predev) e inicia o servidor de desenvolvimento Vite na porta `3030`. |
+| `npm run build` | Compila os web components (prebuild) e gera o build de produção com empacotamento PWA em `dist/`. |
 | `npm run preview` | Executa a pré-visualização do build de produção com Service Worker ativo. |
 | `npm run serve` | Build + Preview em uma única instrução. |

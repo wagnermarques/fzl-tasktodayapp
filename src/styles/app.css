@@ -1,4 +1,19 @@
 /* Estilos globais e complementares do Task Today App */
+:root {
+  /* Alinhamento entre os Design Tokens FZL (--fzl-*) e o Material 3 do Appshell (--md-sys-*) */
+  --fzl-color-primary: var(--md-sys-color-primary, #6750a4);
+  --fzl-color-primary-hover: var(--md-sys-color-primary-container, #eaddff);
+  --fzl-color-primary-contrast: var(--md-sys-color-on-primary, #ffffff);
+  --fzl-color-surface: var(--md-sys-color-surface, #fffbfe);
+  --fzl-color-surface-muted: var(--md-sys-color-surface-variant, #e7e0ec);
+  --fzl-color-text: var(--md-sys-color-on-surface, #1d1b20);
+  --fzl-color-text-muted: var(--md-sys-color-on-surface-variant, #49454f);
+  --fzl-color-border: var(--md-sys-color-outline-variant, #cac4d0);
+  --fzl-color-border-hover: var(--md-sys-color-outline, #79747e);
+  --fzl-color-danger: var(--md-sys-color-error, #ba1a1a);
+  --fzl-color-danger-contrast: var(--md-sys-color-on-error, #ffffff);
+}
+
 body {
   margin: 0;
   padding: 0;

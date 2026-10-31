@@ -3,20 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "fzl-fund-appshell--lit"
-  ],
   "scripts": {
+    "postinstall": "node scripts/setup-links.mjs && cd fzl-fund-ui && npm install && npm run build:tokens && npm run build:lit",
+    "build:ui": "npm run build:tokens --prefix fzl-fund-ui && npm run build:lit --prefix fzl-fund-ui",
+    "predev": "npm run build:ui",
+    "prebuild": "npm run build:ui",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "serve": "npm run build && npm run preview"
   },
   "dependencies": {
+    "@fontsource/atkinson-hyperlegible-next": "^5.3.0",
+    "@fontsource/opendyslexic": "^5.3.0",
     "@material-symbols/font-400": "^0.35.0",
     "@material/web": "^2.5.0",
     "dompurify": "^3.4.17",
-    "fzl-fund-appshell--lit": "*",
     "keycloak-js": "^26.0.0",
     "lit": "^3.3.3"
   },

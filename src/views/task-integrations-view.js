@@ -1,4 +1,6 @@
 import { LitElement, html, css } from 'lit'
+import '@fzl/webcomponents-lit/button'
+import '@fzl/webcomponents-lit/crumb'
 import { storageManager } from '../services/storage.js'
 
 export class TaskIntegrationsView extends LitElement {
@@ -162,6 +164,8 @@ export class TaskIntegrationsView extends LitElement {
 
   render() {
     return html`
+      <fzl-lit-crumb .items=${[{ label: 'Início', href: '#/' }, { label: 'Integrações' }]} style="margin-bottom: 12px;"></fzl-lit-crumb>
+
       <div class="header">
         <h1 class="title"><md-icon>sync_alt</md-icon> Integração Multiplataforma (RF05)</h1>
         <p class="subtitle">Conecte o Task Today App a provedores externos e ao back-end Apache Karaf / Camel.</p>
@@ -184,13 +188,14 @@ export class TaskIntegrationsView extends LitElement {
             </div>
             <p class="card-desc">Sincronize prazos e listas de afazeres da sua conta Google automaticamente.</p>
           </div>
-          <button
-            class="btn ${this.googleConnected ? 'btn-outline' : 'btn-primary'}"
-            @click=${this._toggleGoogle}
+          <fzl-lit-button
+            variant=${this.googleConnected ? 'secondary' : 'primary'}
+            size="md"
+            @fzl-click=${this._toggleGoogle}
           >
             <md-icon>${this.googleConnected ? 'link_off' : 'link'}</md-icon>
             ${this.googleConnected ? 'Desconectar' : 'Conectar Google'}
-          </button>
+          </fzl-lit-button>
         </div>
 
         <!-- Microsoft To Do -->
@@ -209,13 +214,14 @@ export class TaskIntegrationsView extends LitElement {
             </div>
             <p class="card-desc">Integração com o Microsoft 365, Outlook Tasks e Microsoft To Do.</p>
           </div>
-          <button
-            class="btn ${this.msConnected ? 'btn-outline' : 'btn-primary'}"
-            @click=${this._toggleMS}
+          <fzl-lit-button
+            variant=${this.msConnected ? 'secondary' : 'primary'}
+            size="md"
+            @fzl-click=${this._toggleMS}
           >
             <md-icon>${this.msConnected ? 'link_off' : 'link'}</md-icon>
             ${this.msConnected ? 'Desconectar' : 'Conectar Microsoft'}
-          </button>
+          </fzl-lit-button>
         </div>
       </div>
 
@@ -240,9 +246,9 @@ export class TaskIntegrationsView extends LitElement {
               .value=${this.backendUrl}
               @input=${e => this.backendUrl = e.target.value}
             />
-            <button class="btn btn-primary" @click=${this._saveBackendUrl}>
+            <fzl-lit-button variant="primary" size="md" @fzl-click=${this._saveBackendUrl}>
               <md-icon>save</md-icon> Salvar
-            </button>
+            </fzl-lit-button>
           </div>
         </div>
 

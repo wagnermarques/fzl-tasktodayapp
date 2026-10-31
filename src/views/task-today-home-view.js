@@ -1,5 +1,8 @@
 import { LitElement, html, css } from 'lit'
+import '@fzl/webcomponents-lit/button'
+import '@fzl/webcomponents-lit/crumb'
 import { taskService } from '../services/task-service.js'
+import { ITEM_KIND_TASK, ITEM_KIND_NOTE, isNote } from '../services/storage.js'
 import '../components/task-card.js'
 import '../components/task-filter-bar.js'
 import '../components/task-form-dialog.js'
@@ -113,6 +116,22 @@ export class TaskTodayHomeView extends LitElement {
     .add-task-btn:hover {
       opacity: 0.92;
     }
+    /* Botão redondo de adicionar: só o "+" */
+    .add-fab {
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border-radius: 50%;
+      flex-shrink: 0;
+      justify-content: center;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .add-fab:hover {
+      transform: scale(1.06);
+    }
+    .add-fab md-icon {
+      font-size: 26px;
+    }
     .batch-toolbar {
       background: var(--md-sys-color-primary-container, #eaddff);
       color: var(--md-sys-color-on-primary-container, #21005d);
@@ -176,6 +195,7 @@ export class TaskTodayHomeView extends LitElement {
       categoryId: 'all',
       priority: 'all',
       status: 'all',
+      kind: 'all',
       includeArchived: false,
       searchQuery: ''
     }
@@ -207,10 +227,33 @@ export class TaskTodayHomeView extends LitElement {
     this.requestUpdate()
   }
 
+  /**
+   * Tipo que o botão "+" vai criar: o filtro de tipo manda; sem ele, a categoria em foco
+   * (uma categoria de anotações já abre o formulário como anotação).
+   */
+  get _suggestedKind() {
+    if (this.filterParams.kind === ITEM_KIND_NOTE) return ITEM_KIND_NOTE
+    if (this.filterParams.kind === ITEM_KIND_TASK) return ITEM_KIND_TASK
+    if (this.filterParams.categoryId !== 'all') return taskService.kindForCategory(this.filterParams.categoryId)
+    return ITEM_KIND_TASK
+  }
+
   render() {
     const catMap = new Map(this.categories.map(c => [c.id, c]))
+    const onlyNotes = this.filterParams.kind === ITEM_KIND_NOTE
+    const onlyTasks = this.filterParams.kind === ITEM_KIND_TASK
+    const listTitle = onlyNotes ? 'Anotações' : onlyTasks ? 'Tarefas' : 'Tarefas e Anotações'
+    const newLabel = this._suggestedKind === ITEM_KIND_NOTE ? 'Nova Anotação' : 'Nova Tarefa'
+
+    const crumbItems = [
+      { label: 'Início', href: '#/' },
+      { label: listTitle }
+    ]
 
     return html`
+      <!-- Trilha de Navegação -->
+      <fzl-lit-crumb .items=${crumbItems} style="margin-bottom: 12px;"></fzl-lit-crumb>
+
       <!-- Métricas Rápidas -->
       <div class="metrics-grid">
         <div class="metric-card" @click=${() => this._setQuickScope('overdue')}>
@@ -261,6 +304,7 @@ export class TaskTodayHomeView extends LitElement {
         .activeCategory=${this.filterParams.categoryId}
         .activePriority=${this.filterParams.priority}
         .activeStatus=${this.filterParams.status}
+        .activeKind=${this.filterParams.kind}
         .searchQuery=${this.filterParams.searchQuery}
         @filter-change=${this._onFilterChange}
       ></task-filter-bar>
@@ -268,22 +312,27 @@ export class TaskTodayHomeView extends LitElement {
       <!-- Cabeçalho da Lista -->
       <div class="section-header">
         <h2 class="section-title">
-          <md-icon>checklist</md-icon> Tarefas (${this.tasks.length})
+          <md-icon>${onlyNotes ? 'sticky_note_2' : 'checklist'}</md-icon> ${listTitle} (${this.tasks.length})
         </h2>
-        <button class="add-task-btn" @click=${this._openCreateModal}>
-          <md-icon>add</md-icon> Nova Tarefa
+        <button
+          class="add-task-btn add-fab"
+          @click=${this._openCreateModal}
+          title=${newLabel}
+          aria-label=${newLabel}
+        >
+          <md-icon>add</md-icon>
         </button>
       </div>
 
       <!-- Grade de Tarefas -->
       ${this.tasks.length === 0 ? html`
         <div class="empty-state">
-          <md-icon>task_alt</md-icon>
-          <h3 class="empty-title">Nenhuma tarefa encontrada</h3>
-          <p>Crie uma nova tarefa ou ajuste os filtros para visualizar suas atividades.</p>
-          <button class="add-task-btn" style="margin-top: 12px;" @click=${this._openCreateModal}>
-            <md-icon>add</md-icon> Criar Tarefa Agora
-          </button>
+          <md-icon>${onlyNotes ? 'sticky_note_2' : 'task_alt'}</md-icon>
+          <h3 class="empty-title">${onlyNotes ? 'Nenhuma anotação encontrada' : 'Nenhuma tarefa encontrada'}</h3>
+          <p>Crie um item novo ou ajuste os filtros para visualizar seus registros.</p>
+          <fzl-lit-button variant="primary" size="md" style="margin-top: 12px;" @fzl-click=${this._openCreateModal}>
+            <md-icon>add</md-icon> ${newLabel}
+          </fzl-lit-button>
         </div>
       ` : html`
         <div class="tasks-grid">
@@ -307,6 +356,8 @@ export class TaskTodayHomeView extends LitElement {
         .task=${this.editingTask}
         .categories=${this.categories}
         .isEditing=${!!this.editingTask}
+        .defaultKind=${this._suggestedKind}
+        .defaultCategoryId=${this.filterParams.categoryId === 'all' ? '' : this.filterParams.categoryId}
         @save-task=${this._handleSaveTask}
         @close-dialog=${() => { this.dialogOpen = false; this.editingTask = null }}
       ></task-form-dialog>
@@ -366,7 +417,9 @@ export class TaskTodayHomeView extends LitElement {
   }
 
   _handleDeleteTask(e) {
-    if (confirm('Deseja realmente excluir esta tarefa?')) {
+    const item = this.tasks.find(t => t.id === e.detail.taskId)
+    const noun = isNote(item) ? 'esta anotação' : 'esta tarefa'
+    if (confirm(`Deseja realmente excluir ${noun}?`)) {
       taskService.deleteTask(e.detail.taskId)
     }
   }

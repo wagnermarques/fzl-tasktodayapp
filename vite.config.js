@@ -1,5 +1,5 @@
 import { defineConfig, mergeConfig } from 'vite'
-import { appshellConfig } from './fzl-fund-appshell--lit/vite/preset.js'
+import { appshellConfig } from './fzl-fund-ui/appshell-lit/vite/preset.js'
 
 export default defineConfig(
   mergeConfig(

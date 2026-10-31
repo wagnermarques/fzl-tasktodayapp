@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit'
+import '@fzl/webcomponents-lit/button'
 import { alarmService } from '../services/alarm-service.js'
 
 export class TaskAlarmDialog extends LitElement {
@@ -148,20 +149,20 @@ export class TaskAlarmDialog extends LitElement {
           ${this.task.description ? html`<p class="task-desc">${this.task.description}</p>` : ''}
 
           <div class="actions">
-            <button class="btn-primary" @click=${this._completeTask}>
+            <fzl-lit-button variant="primary" size="lg" style="width: 100%; justify-content: center;" @fzl-click=${this._completeTask}>
               <md-icon>check_circle</md-icon> Concluir Tarefa
-            </button>
-            <div class="btn-row">
-              <button class="btn-snooze" @click=${() => this._snooze(5)}>
+            </fzl-lit-button>
+            <div class="btn-row" style="display: flex; gap: 8px; width: 100%; justify-content: center;">
+              <fzl-lit-button variant="secondary" size="md" style="flex: 1;" @fzl-click=${() => this._snooze(5)}>
                 <md-icon>snooze</md-icon> Adiar 5 min
-              </button>
-              <button class="btn-snooze" @click=${() => this._snooze(15)}>
+              </fzl-lit-button>
+              <fzl-lit-button variant="secondary" size="md" style="flex: 1;" @fzl-click=${() => this._snooze(15)}>
                 <md-icon>snooze</md-icon> Adiar 15 min
-              </button>
+              </fzl-lit-button>
             </div>
-            <button class="btn-dismiss" @click=${this._dismiss}>
+            <fzl-lit-button variant="danger" size="md" style="width: 100%; justify-content: center;" @fzl-click=${this._dismiss}>
               <md-icon>close</md-icon> Dispensar Alarme
-            </button>
+            </fzl-lit-button>
           </div>
         </div>
       </div>

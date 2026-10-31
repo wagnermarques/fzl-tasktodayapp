@@ -73,10 +73,26 @@ classDiagram
     +archiveTask(id, archived) Task
     +filterTasks(filters) Task[]
     +getMetrics() object
+    +kindForCategory(categoryId) string
     +addCategory(category) Category
     +updateCategory(id, patch) Category
     +deleteCategory(id) void
   }
+
+  class Task {
+    +id: string
+    +kind: TAREFA | ANOTACAO
+    +title: string
+    +description: string
+    +categoryId: string
+    +isArchived: boolean
+    +priority: string
+    +status: string
+    +deadline: string
+    +alertType: string
+    +triggerMinutes: number
+  }
+  note for Task "Os cinco últimos campos são de tarefa:\nem ANOTACAO ficam nulos (alertType 'none').\nItem sem kind é tarefa (dado anterior à distinção)."
 
   class AlarmService {
     -audioCtx: AudioContext
@@ -155,6 +171,7 @@ classDiagram
 
   %% ---------------- Dependências entre serviços ----------------
 
+  TaskService ..> Task : cria e mantém as invariantes do kind
   TaskService ..> StorageManager : usa
   TaskService ..> AlarmService : usa
   TaskService ..> SyncService : usa
