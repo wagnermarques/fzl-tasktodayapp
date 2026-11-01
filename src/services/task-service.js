@@ -309,6 +309,31 @@ class TaskService {
   }
 
   /**
+   * Reordena a lista de tarefas persistida a partir de uma nova sequência de IDs.
+   */
+  reorderTasks(reorderedIds) {
+    if (!Array.isArray(reorderedIds) || reorderedIds.length === 0) return
+    const allTasks = this.getTasks()
+    const taskMap = new Map(allTasks.map(t => [t.id, t]))
+    const newTasks = []
+
+    for (const id of reorderedIds) {
+      const t = taskMap.get(id)
+      if (t) {
+        newTasks.push(t)
+        taskMap.delete(id)
+      }
+    }
+    // Mantém tarefas não visíveis no filtro atual ao final
+    for (const t of taskMap.values()) {
+      newTasks.push(t)
+    }
+
+    storageManager.setItem('tasks', newTasks)
+    this._notify()
+  }
+
+  /**
    * RF03: Filtragem Avançada e Visualização
    */
   filterTasks({

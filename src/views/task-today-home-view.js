@@ -1,8 +1,9 @@
 import { LitElement, html, css } from 'lit'
 import '@fzl/webcomponents-lit/button'
 import '@fzl/webcomponents-lit/crumb'
+import '@fzl/webcomponents-lit/card-list'
 import { taskService } from '../services/task-service.js'
-import { ITEM_KIND_TASK, ITEM_KIND_NOTE, isNote } from '../services/storage.js'
+import { storageManager, ITEM_KIND_TASK, ITEM_KIND_NOTE, isNote } from '../services/storage.js'
 import '../components/task-card.js'
 import '../components/task-filter-bar.js'
 import '../components/task-form-dialog.js'
@@ -16,7 +17,8 @@ export class TaskTodayHomeView extends LitElement {
     metrics: { type: Object },
     dialogOpen: { type: Boolean },
     editingTask: { type: Object },
-    selectedTaskIds: { type: Array }
+    selectedTaskIds: { type: Array },
+    viewMode: { type: String }
   }
 
   static styles = css`
@@ -205,6 +207,7 @@ export class TaskTodayHomeView extends LitElement {
     this.dialogOpen = false
     this.editingTask = null
     this.selectedTaskIds = []
+    this.viewMode = storageManager.getItem('view:mode', 'card-list')
   }
 
   connectedCallback() {
@@ -314,17 +317,38 @@ export class TaskTodayHomeView extends LitElement {
         <h2 class="section-title">
           <md-icon>${onlyNotes ? 'sticky_note_2' : 'checklist'}</md-icon> ${listTitle} (${this.tasks.length})
         </h2>
-        <button
-          class="add-task-btn add-fab"
-          @click=${this._openCreateModal}
-          title=${newLabel}
-          aria-label=${newLabel}
-        >
-          <md-icon>add</md-icon>
-        </button>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="view-mode-toggle" style="display: inline-flex; background: var(--md-sys-color-surface-container, #f3edf7); border-radius: 8px; padding: 2px; gap: 4px;">
+            <fzl-lit-button
+              variant=${this.viewMode === 'card-list' ? 'primary' : 'secondary'}
+              size="sm"
+              @fzl-click=${() => this._setViewMode('card-list')}
+              title="Cards FZL com suporte a arrastar e reordenar"
+            >
+              <md-icon slot="icon" style="font-size: 16px;">drag_indicator</md-icon> Reordenar (FZL)
+            </fzl-lit-button>
+            <fzl-lit-button
+              variant=${this.viewMode === 'detailed' ? 'primary' : 'secondary'}
+              size="sm"
+              @fzl-click=${() => this._setViewMode('detailed')}
+              title="Visão com detalhes e ações rápidas"
+            >
+              <md-icon slot="icon" style="font-size: 16px;">view_agenda</md-icon> Detalhes
+            </fzl-lit-button>
+          </div>
+
+          <button
+            class="add-task-btn add-fab"
+            @click=${this._openCreateModal}
+            title=${newLabel}
+            aria-label=${newLabel}
+          >
+            <md-icon>add</md-icon>
+          </button>
+        </div>
       </div>
 
-      <!-- Grade de Tarefas -->
+      <!-- Grade / Lista de Tarefas -->
       ${this.tasks.length === 0 ? html`
         <div class="empty-state">
           <md-icon>${onlyNotes ? 'sticky_note_2' : 'task_alt'}</md-icon>
@@ -333,6 +357,17 @@ export class TaskTodayHomeView extends LitElement {
           <fzl-lit-button variant="primary" size="md" style="margin-top: 12px;" @fzl-click=${this._openCreateModal}>
             <md-icon>add</md-icon> ${newLabel}
           </fzl-lit-button>
+        </div>
+      ` : this.viewMode === 'card-list' ? html`
+        <div style="margin-top: 14px;">
+          <fzl-lit-card-list
+            .items=${this._toCardItems(catMap)}
+            layout="grid"
+            allow-reorder
+            @fzl-cards-reorder=${this._handleCardsReorder}
+            @fzl-card-click=${this._handleCardClick}
+            @fzl-card-action=${this._handleCardAction}
+          ></fzl-lit-card-list>
         </div>
       ` : html`
         <div class="tasks-grid">
@@ -426,6 +461,86 @@ export class TaskTodayHomeView extends LitElement {
 
   _handleCompleteAlarmTask(e) {
     taskService.updateTask(e.detail.taskId, { status: 'CONCLUIDA' })
+  }
+
+  _setViewMode(mode) {
+    this.viewMode = mode
+    storageManager.setItem('view:mode', mode)
+  }
+
+  _toCardItems(catMap) {
+    return this.tasks.map(task => {
+      const cat = catMap.get(task.categoryId)
+      const asNote = isNote(task)
+      const plainDesc = task.description
+        ? task.description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+        : ''
+
+      let dateStr = ''
+      if (task.deadline) {
+        try {
+          const d = new Date(task.deadline)
+          dateStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+        } catch {
+          dateStr = task.deadline
+        }
+      }
+
+      let badge = ''
+      let priority = ''
+      if (asNote) {
+        badge = 'Anotação'
+      } else if (task.status === 'CONCLUIDA') {
+        badge = '✓ Concluída'
+      } else {
+        priority = task.priority || 'MEDIA'
+        badge = priority
+      }
+
+      return {
+        id: task.id,
+        title: task.title,
+        subtitle: cat ? `${cat.name}` : (asNote ? 'Anotação' : 'Geral'),
+        description: plainDesc,
+        status: asNote ? '' : (task.status === 'CONCLUIDA' ? 'Concluída' : 'Pendente'),
+        priority,
+        category: cat?.name || '',
+        date: dateStr,
+        badge,
+        tags: cat?.name ? [cat.name] : [],
+        actionLabel: asNote ? 'Abrir' : (task.status === 'CONCLUIDA' ? 'Reabrir' : 'Concluir'),
+        task
+      }
+    })
+  }
+
+  _handleCardsReorder(e) {
+    const { items } = e.detail
+    if (Array.isArray(items)) {
+      const reorderedIds = items.map(item => item.id)
+      taskService.reorderTasks(reorderedIds)
+    }
+  }
+
+  _handleCardClick(e) {
+    const { item } = e.detail
+    const task = item.task || this.tasks.find(t => t.id === item.id)
+    if (task) {
+      this.editingTask = task
+      this.dialogOpen = true
+    }
+  }
+
+  _handleCardAction(e) {
+    const { item } = e.detail
+    const task = item.task || this.tasks.find(t => t.id === item.id)
+    if (!task) return
+    if (isNote(task)) {
+      this.editingTask = task
+      this.dialogOpen = true
+    } else {
+      taskService.toggleComplete(task.id)
+    }
   }
 }
 

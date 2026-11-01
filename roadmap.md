@@ -49,10 +49,11 @@ Documento de acompanhamento do ciclo de vida, entregas realizadas e próximas et
   - [`<task-card>`](src/components/task-card.js) de anotação sem checkbox de conclusão, sem selo de prazo e sem "Adiar"; filtro **Tipo** na [`<task-filter-bar>`](src/components/task-filter-bar.js) e rota/menu `#/anotacoes`.
   - Itens gravados antes desta versão não têm `kind` e seguem valendo como tarefa (sem migração destrutiva).
   - Botão de adicionar virou um **`+` redondo**, com o rótulo acessível seguindo o tipo que vai ser criado.
-- [x] **RF03 — Filtragem Avançada e Visualização**:
+- [x] **RF03 — Filtragem Avançada, Visualização e Reordenação**:
   - Componente [`<task-filter-bar>`](src/components/task-filter-bar.js) com chips de foco em Deadline (*Atrasadas*, *Vencem Hoje*, *Esta Semana*, *Todas*).
   - Filtros combinados por Categoria, Prioridade, Status (*Pendentes*, *Concluídas*, *Arquivadas*) e busca textual instantânea.
   - Dashboard de métricas na [`<task-today-home-view>`](src/views/task-today-home-view.js).
+  - Integração do componente [`<fzl-lit-card-list>`](fzl-fund-ui/webcomponents-lit/src/components/card-list/card-list.component.ts) com reordenação manual por *drag-and-drop* e controles acessíveis (▲ / ▼), persistência da ordem no `taskService` e alternância entre visão Reordenável (FZL) e Detalhada.
 - [x] **RF04 — View de Configuração de Alertas e Alarmes Sonoros**:
   - Serviço [`alarm-service.js`](src/services/alarm-service.js) baseado em **Web Audio API** (timbres sintetizados *Chime*, *Radar*, *Bell*, *Synth* sem dependência de MP3 externo).
   - Modal pulsante [`<task-alarm-dialog>`](src/components/task-alarm-dialog.js) com ações de Adiar 5 min, Adiar 15 min, Concluir Tarefa e Dispensar.
