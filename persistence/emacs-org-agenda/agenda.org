@@ -1,0 +1,17 @@
+#+TITLE: FZL TaskToday - Compromissos & Tarefas Org Agenda
+#+STARTUP: overview
+#+CATEGORY: Geral
+
+* Compromissos
+** Reunião de Alinhamento
+   <2026-11-04 Qua 14:00-15:00>
+   Reunião periódica de alinhamento e tarefas.
+
+* Tarefas Diárias
+** TODO Explorar comandos do Org Agenda no fzl-emacs
+   SCHEDULED: <2026-11-04 Qua>
+   - Pressione [t] na agenda para marcar como DONE.
+   - Pressione [d] para visão do dia, [w] para a semana.
+   - Pressione [RET] para pular diretamente para a linha do arquivo.
+** TODO Configurar rotina semanal de backup e sync
+   DEADLINE: <2026-11-06 Sex 18:00>
