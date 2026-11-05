@@ -6,6 +6,7 @@ import '@fzl/webcomponents-lit'
 import { createAppShell, pattern } from 'fzl-fund-appshell--lit'
 import { keycloakProvider, isKeycloakConfigured } from './services/keycloak-provider.js'
 import { ITEM_KIND_NOTE } from './services/storage.js'
+import { taskService } from './services/task-service.js'
 
 // Views
 import './views/task-today-home-view.js'
@@ -18,6 +19,11 @@ createAppShell({
   title: 'Task Today App',
   // Sem as variáveis VITE_KEYCLOAK_*, fica o provedor local de demonstração (sem sincronização)
   ...(isKeycloakConfigured() ? { auth: keycloakProvider } : {}),
+  on: {
+    'auth:logout': () => {
+      taskService.clearMemory()
+    }
+  },
   home: () => html`<task-today-home-view></task-today-home-view>`,
   routes: [
     {

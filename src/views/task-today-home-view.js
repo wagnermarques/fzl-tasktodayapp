@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit'
 import '@fzl/webcomponents-lit/button'
 import '@fzl/webcomponents-lit/crumb'
 import '@fzl/webcomponents-lit/card-list'
+import { authService, navigate, notificationService } from 'fzl-fund-appshell--lit'
 import { taskService } from '../services/task-service.js'
 import { storageManager, ITEM_KIND_TASK, ITEM_KIND_NOTE, isNote } from '../services/storage.js'
 import '../components/task-card.js'
@@ -18,7 +19,8 @@ export class TaskTodayHomeView extends LitElement {
     dialogOpen: { type: Boolean },
     editingTask: { type: Object },
     selectedTaskIds: { type: Array },
-    viewMode: { type: String }
+    viewMode: { type: String },
+    currentUser: { type: Object }
   }
 
   static styles = css`
@@ -208,6 +210,7 @@ export class TaskTodayHomeView extends LitElement {
     this.editingTask = null
     this.selectedTaskIds = []
     this.viewMode = storageManager.getItem('view:mode', 'card-list')
+    this.currentUser = authService.getCurrentUser()
   }
 
   connectedCallback() {
@@ -216,11 +219,16 @@ export class TaskTodayHomeView extends LitElement {
     this.unsubscribe = taskService.subscribe(() => {
       this._loadData()
     })
+    this.authUnsubscribe = authService.subscribe((user) => {
+      this.currentUser = user
+      this._loadData()
+    })
   }
 
   disconnectedCallback() {
     super.disconnectedCallback()
     if (this.unsubscribe) this.unsubscribe()
+    if (this.authUnsubscribe) this.authUnsubscribe()
   }
 
   _loadData() {
@@ -353,10 +361,19 @@ export class TaskTodayHomeView extends LitElement {
         <div class="empty-state">
           <md-icon>${onlyNotes ? 'sticky_note_2' : 'task_alt'}</md-icon>
           <h3 class="empty-title">${onlyNotes ? 'Nenhuma anotação encontrada' : 'Nenhuma tarefa encontrada'}</h3>
-          <p>Crie um item novo ou ajuste os filtros para visualizar seus registros.</p>
-          <fzl-lit-button variant="primary" size="md" style="margin-top: 12px;" @fzl-click=${this._openCreateModal}>
-            <md-icon>add</md-icon> ${newLabel}
-          </fzl-lit-button>
+          <p>${this.currentUser
+            ? 'Crie um item novo ou ajuste os filtros para visualizar seus registros.'
+            : 'Faça login para visualizar e gerenciar suas tarefas e anotações.'
+          }</p>
+          ${this.currentUser ? html`
+            <fzl-lit-button variant="primary" size="md" style="margin-top: 12px;" @fzl-click=${this._openCreateModal}>
+              <md-icon>add</md-icon> ${newLabel}
+            </fzl-lit-button>
+          ` : html`
+            <fzl-lit-button variant="primary" size="md" style="margin-top: 12px;" @fzl-click=${() => navigate('#/conta/entrar')}>
+              <md-icon>login</md-icon> Fazer Login
+            </fzl-lit-button>
+          `}
         </div>
       ` : this.viewMode === 'card-list' ? html`
         <div style="margin-top: 14px;">
@@ -419,6 +436,15 @@ export class TaskTodayHomeView extends LitElement {
   }
 
   _openCreateModal() {
+    if (!this.currentUser) {
+      notificationService.show({
+        message: 'Faça login para criar tarefas e anotações.',
+        type: 'warning',
+        duration: 4000
+      })
+      navigate('#/conta/entrar')
+      return
+    }
     this.editingTask = null
     this.dialogOpen = true
   }
@@ -429,6 +455,15 @@ export class TaskTodayHomeView extends LitElement {
   }
 
   _handleSaveTask(e) {
+    if (!this.currentUser) {
+      notificationService.show({
+        message: 'Faça login para salvar suas tarefas.',
+        type: 'warning',
+        duration: 4000
+      })
+      navigate('#/conta/entrar')
+      return
+    }
     const { payload, isEditing } = e.detail
     if (isEditing && payload.id) {
       taskService.updateTask(payload.id, payload)

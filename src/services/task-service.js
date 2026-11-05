@@ -6,6 +6,7 @@ import { storageManager, NATIVE_CATEGORIES, ITEM_KIND_TASK, ITEM_KIND_NOTE, isNo
 import { alarmService } from './alarm-service.js'
 import { syncService } from './sync-service.js'
 import { onSignOut, isTaskTodayAdmin } from './keycloak-provider.js'
+import { authService } from 'fzl-fund-appshell--lit'
 
 // `0` é uma opção válida de gatilho ("no momento exato"), por isso não usamos `|| 15`;
 // ausente (anotação) cai no padrão
@@ -50,21 +51,38 @@ class TaskService {
     this.listeners = new Set()
     this._initAlarmChecker()
     this._initSync()
+    this._initAuthListener()
+  }
+
+  _initAuthListener() {
+    authService.subscribe(() => {
+      this._notify()
+    })
+  }
+
+  _getUser() {
+    return authService.getCurrentUser()
+  }
+
+  _getUserTaskKey() {
+    const user = this._getUser()
+    return user?.id ? `tasks:${user.id}` : null
   }
 
   _initSync() {
     // O servidor é a referência depois de cada sincronização (inclusive alarmFired,
     // para o alarme local não tocar de novo o que o push do servidor já avisou)
     syncService.onPulled(({ tasks, categories }) => {
-      storageManager.setItem('tasks', this._keepLocalKinds(tasks, this.getTasks(), 'kind'))
+      const key = this._getUserTaskKey()
+      if (key) {
+        storageManager.setItem(key, this._keepLocalKinds(tasks, this.getTasks(), 'kind'))
+      }
       storageManager.setItem('categories', this._keepLocalKinds(categories, this.getCategories(), 'defaultKind'))
       this._notify()
     })
     // Os dados locais são do usuário que está saindo
     onSignOut(() => {
       syncService.clear()
-      storageManager.setItem('tasks', [])
-      storageManager.setItem('categories', NATIVE_CATEGORIES)
       this._notify()
     })
     syncService.start()
@@ -100,7 +118,13 @@ class TaskService {
   }
 
   getTasks() {
-    return storageManager.getItem('tasks', [])
+    const key = this._getUserTaskKey()
+    if (!key) return []
+    return storageManager.getItem(key, [])
+  }
+
+  clearMemory() {
+    this._notify()
   }
 
   getCategories() {
@@ -160,9 +184,12 @@ class TaskService {
     this.saveCategories(cats)
 
     // Mesmo efeito do servidor: as tarefas da categoria ficam sem categoria
-    const tasks = this.getTasks().map(t => t.categoryId === categoryId ? { ...t, categoryId: null } : t)
-    storageManager.setItem('tasks', tasks)
-    this._notify()
+    const key = this._getUserTaskKey()
+    if (key) {
+      const tasks = this.getTasks().map(t => t.categoryId === categoryId ? { ...t, categoryId: null } : t)
+      storageManager.setItem(key, tasks)
+      this._notify()
+    }
     syncService.categoryDeleted(categoryId)
   }
 
@@ -176,6 +203,10 @@ class TaskService {
    * RF01: Cadastro de Tarefa ou de Anotação, conforme `kind`
    */
   createTask(taskData) {
+    const key = this._getUserTaskKey()
+    if (!key) {
+      throw new Error('É necessário estar autenticado para criar tarefas.')
+    }
     const tasks = this.getTasks()
     const kind = taskData.kind === ITEM_KIND_NOTE ? ITEM_KIND_NOTE : ITEM_KIND_TASK
     const prefix = kind === ITEM_KIND_NOTE ? 'note' : 'task'
@@ -200,7 +231,7 @@ class TaskService {
     })
 
     tasks.unshift(newTask)
-    storageManager.setItem('tasks', tasks)
+    storageManager.setItem(key, tasks)
     this._notify()
     syncService.taskCreated(newTask)
     return newTask
@@ -210,6 +241,10 @@ class TaskService {
    * RF06: Manutenção e Edição
    */
   updateTask(taskId, patch) {
+    const key = this._getUserTaskKey()
+    if (!key) {
+      throw new Error('É necessário estar autenticado para atualizar tarefas.')
+    }
     const tasks = this.getTasks()
     const idx = tasks.findIndex(t => t.id === taskId)
     if (idx === -1) throw new Error('Tarefa não encontrada.')
@@ -232,7 +267,7 @@ class TaskService {
     }
 
     tasks[idx] = updated
-    storageManager.setItem('tasks', tasks)
+    storageManager.setItem(key, tasks)
     this._notify()
     // O servidor também precisa do que as regras do tipo ajustaram: ao virar anotação,
     // prazo, prioridade, status e alarme são apagados
@@ -265,16 +300,20 @@ class TaskService {
    * RF07: Exclusão individual e em lote
    */
   deleteTask(taskId) {
+    const key = this._getUserTaskKey()
+    if (!key) return
     const tasks = this.getTasks().filter(t => t.id !== taskId)
-    storageManager.setItem('tasks', tasks)
+    storageManager.setItem(key, tasks)
     this._notify()
     syncService.taskDeleted(taskId)
   }
 
   bulkDelete(taskIds) {
+    const key = this._getUserTaskKey()
+    if (!key) return
     const idsSet = new Set(taskIds)
     const tasks = this.getTasks().filter(t => !idsSet.has(t.id))
-    storageManager.setItem('tasks', tasks)
+    storageManager.setItem(key, tasks)
     this._notify()
     for (const id of idsSet) syncService.taskDeleted(id)
   }
@@ -287,6 +326,8 @@ class TaskService {
   }
 
   bulkArchive(taskIds, isArchived = true) {
+    const key = this._getUserTaskKey()
+    if (!key) return
     const idsSet = new Set(taskIds)
     const tasks = this.getTasks().map(t => {
       if (idsSet.has(t.id)) {
@@ -294,7 +335,7 @@ class TaskService {
       }
       return t
     })
-    storageManager.setItem('tasks', tasks)
+    storageManager.setItem(key, tasks)
     this._notify()
     for (const id of idsSet) syncService.taskUpdated(id, { isArchived })
   }
@@ -312,6 +353,8 @@ class TaskService {
    * Reordena a lista de tarefas persistida a partir de uma nova sequência de IDs.
    */
   reorderTasks(reorderedIds) {
+    const key = this._getUserTaskKey()
+    if (!key) return
     if (!Array.isArray(reorderedIds) || reorderedIds.length === 0) return
     const allTasks = this.getTasks()
     const taskMap = new Map(allTasks.map(t => [t.id, t]))
@@ -329,7 +372,7 @@ class TaskService {
       newTasks.push(t)
     }
 
-    storageManager.setItem('tasks', newTasks)
+    storageManager.setItem(key, newTasks)
     this._notify()
   }
 
