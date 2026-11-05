@@ -108,6 +108,13 @@ class KeycloakAuthProvider {
     await this.keycloak.login({ redirectUri: this._redirectUri() })
   }
 
+  async signUp() {
+    await this.ready.catch(() => false)
+    if (this.keycloak) {
+      await this.keycloak.register({ redirectUri: this._redirectUri() })
+    }
+  }
+
   async signOut() {
     for (const listener of this.signOutListeners) listener()
     storageManager.setItem(SESSION_HINT_KEY, null)
@@ -136,10 +143,11 @@ export function onSignOut(listener) {
 }
 
 /** Objeto simples exigido pelo appshell como auth provider (propriedades próprias
- *  `redirect`/`init`/`signIn`/`signOut`), delegando para a instância da classe. */
+ *  `redirect`/`init`/`signIn`/`signOut`/`signUp`), delegando para a instância da classe. */
 export const keycloakProvider = {
   redirect: true,
   init: (...args) => keycloakAuthProvider.init(...args),
   signIn: (...args) => keycloakAuthProvider.signIn(...args),
-  signOut: (...args) => keycloakAuthProvider.signOut(...args)
+  signOut: (...args) => keycloakAuthProvider.signOut(...args),
+  signUp: (...args) => keycloakAuthProvider.signUp(...args)
 }

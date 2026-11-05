@@ -363,16 +363,21 @@ export class TaskTodayHomeView extends LitElement {
           <h3 class="empty-title">${onlyNotes ? 'Nenhuma anotação encontrada' : 'Nenhuma tarefa encontrada'}</h3>
           <p>${this.currentUser
             ? 'Crie um item novo ou ajuste os filtros para visualizar seus registros.'
-            : 'Faça login para visualizar e gerenciar suas tarefas e anotações.'
+            : 'Faça login ou crie uma conta para visualizar e gerenciar suas tarefas e anotações.'
           }</p>
           ${this.currentUser ? html`
             <fzl-lit-button variant="primary" size="md" style="margin-top: 12px;" @fzl-click=${this._openCreateModal}>
               <md-icon>add</md-icon> ${newLabel}
             </fzl-lit-button>
           ` : html`
-            <fzl-lit-button variant="primary" size="md" style="margin-top: 12px;" @fzl-click=${() => navigate('#/conta/entrar')}>
-              <md-icon>login</md-icon> Fazer Login
-            </fzl-lit-button>
+            <div style="display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap;">
+              <fzl-lit-button variant="primary" size="md" @fzl-click=${() => navigate('#/conta/entrar')}>
+                <md-icon>login</md-icon> Entrar
+              </fzl-lit-button>
+              <fzl-lit-button variant="tonal" size="md" @fzl-click=${() => navigate('#/conta/cadastro')}>
+                <md-icon>person_add</md-icon> Criar conta
+              </fzl-lit-button>
+            </div>
           `}
         </div>
       ` : this.viewMode === 'card-list' ? html`
