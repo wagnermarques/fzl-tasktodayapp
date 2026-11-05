@@ -12,6 +12,7 @@ export default defineConfig(
         importScripts: ['push-sw.js'],
       },
       manifest: {
+        id: 'fzl-tasktodayapp',
         name: 'Task Today App — Gestão de Tarefas e Deadlines',
         short_name: 'Task Today',
         description: 'Gerenciador de tarefas com foco em deadlines, alarmes sonoros e notificações push multiplataforma',
