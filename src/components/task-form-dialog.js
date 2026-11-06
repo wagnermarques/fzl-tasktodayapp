@@ -1,4 +1,5 @@
 import { LitElement, html, css } from 'lit'
+import { live } from 'lit/directives/live.js'
 import '@fzl/webcomponents-lit/button'
 import './rich-text-editor.js'
 import { ITEM_KIND_TASK, ITEM_KIND_NOTE, isNote } from '../services/storage.js'
@@ -13,7 +14,8 @@ export class TaskFormDialog extends LitElement {
     defaultKind: { type: String },
     /** Categoria pré-selecionada ao abrir para criação (a que está em foco na lista) */
     defaultCategoryId: { type: String },
-    _kind: { type: String, state: true }
+    _kind: { type: String, state: true },
+    _description: { type: String, state: true }
   }
 
   static styles = css`
@@ -183,13 +185,96 @@ export class TaskFormDialog extends LitElement {
     this._description = ''
   }
 
+  connectedCallback() {
+    super.connectedCallback()
+    this._handleKeyDown = (e) => {
+      if (this.open && e.key === 'Escape') {
+        this._close()
+      }
+    }
+    window.addEventListener('keydown', this._handleKeyDown)
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback()
+    if (this._handleKeyDown) {
+      window.removeEventListener('keydown', this._handleKeyDown)
+    }
+  }
+
+  willUpdate(changedProps) {
+    if (changedProps.has('open') || changedProps.has('task')) {
+      if (this.open) {
+        this._description = this.task?.description || ''
+        // Na edição vale o tipo do próprio item; na criação, o sugerido pela categoria em foco
+        this._kind = this.task
+          ? (isNote(this.task) ? ITEM_KIND_NOTE : ITEM_KIND_TASK)
+          : (this.defaultKind === ITEM_KIND_NOTE ? ITEM_KIND_NOTE : ITEM_KIND_TASK)
+      } else {
+        this._description = ''
+      }
+    }
+  }
+
   updated(changedProps) {
-    if (changedProps.has('open') && this.open) {
-      this._description = this.task?.description || ''
-      // Na edição vale o tipo do próprio item; na criação, o sugerido pela categoria em foco
-      this._kind = this.task
-        ? (isNote(this.task) ? ITEM_KIND_NOTE : ITEM_KIND_TASK)
-        : (this.defaultKind === ITEM_KIND_NOTE ? ITEM_KIND_NOTE : ITEM_KIND_TASK)
+    if (changedProps.has('open') || changedProps.has('task')) {
+      if (this.open) {
+        this._syncFormInputs()
+      } else {
+        this._resetForm()
+      }
+    }
+  }
+
+  _syncFormInputs() {
+    const t = this.task || {}
+    const defaultDeadline = t.deadline ? this._formatForInput(t.deadline) : ''
+    const selectedCategory = t.categoryId || this.defaultCategoryId || 'cat-cotidianas'
+
+    const form = this.shadowRoot?.querySelector('form')
+    if (!form) return
+
+    const titleEl = form.querySelector('#title')
+    if (titleEl) titleEl.value = t.title || ''
+
+    const descEl = form.querySelector('rich-text-editor')
+    if (descEl) {
+      if (typeof descEl.setValue === 'function') {
+        descEl.setValue(this._description || '')
+      } else {
+        descEl.value = this._description || ''
+      }
+    }
+
+    const catEl = form.querySelector('#categoryId')
+    if (catEl) catEl.value = selectedCategory
+
+    const prioEl = form.querySelector('#priority')
+    if (prioEl) prioEl.value = t.priority || 'MEDIA'
+
+    const dlEl = form.querySelector('#deadline')
+    if (dlEl) dlEl.value = defaultDeadline
+
+    const alertEl = form.querySelector('#alertType')
+    if (alertEl) alertEl.value = t.alertType || 'sound'
+
+    const trigEl = form.querySelector('#triggerMinutes')
+    if (trigEl) trigEl.value = String(t.triggerMinutes ?? 15)
+  }
+
+  _resetForm() {
+    this._description = ''
+    const form = this.shadowRoot?.querySelector('form')
+    if (form) form.reset()
+    const descEl = this.shadowRoot?.querySelector('rich-text-editor')
+    if (descEl && typeof descEl.setValue === 'function') {
+      descEl.setValue('')
+    }
+  }
+
+  _handleBackdropClick(e) {
+    if (e.target === e.currentTarget) {
+      this._close()
     }
   }
 
@@ -254,7 +339,7 @@ export class TaskFormDialog extends LitElement {
                 name="title"
                 required
                 placeholder=${asNote ? 'Ex: Ideias para a próxima sprint' : 'Ex: Concluir relatório financeiro'}
-                .value=${t.title || ''}
+                .value=${live(t.title || '')}
               />
             </div>
 
@@ -270,7 +355,7 @@ export class TaskFormDialog extends LitElement {
             <div class="${asNote ? 'form-group' : 'row-2'}">
               <div class="form-group">
                 <label for="categoryId">Categoria (Multiescopo)</label>
-                <select id="categoryId" name="categoryId" .value=${selectedCategory} @change=${this._onCategoryChange}>
+                <select id="categoryId" name="categoryId" .value=${live(selectedCategory)} @change=${this._onCategoryChange}>
                   ${this.categories.map(
                     cat => html`<option value=${cat.id} ?selected=${selectedCategory === cat.id}>${cat.name}</option>`
                   )}
@@ -280,7 +365,7 @@ export class TaskFormDialog extends LitElement {
               ${asNote ? '' : html`
                 <div class="form-group">
                   <label for="priority">Prioridade</label>
-                  <select id="priority" name="priority" .value=${t.priority || 'MEDIA'}>
+                  <select id="priority" name="priority" .value=${live(t.priority || 'MEDIA')}>
                     <option value="BAIXA" ?selected=${t.priority === 'BAIXA'}>Baixa</option>
                     <option value="MEDIA" ?selected=${t.priority === 'MEDIA' || !t.priority}>Média</option>
                     <option value="ALTA" ?selected=${t.priority === 'ALTA'}>Alta</option>
@@ -297,14 +382,14 @@ export class TaskFormDialog extends LitElement {
                   type="datetime-local"
                   id="deadline"
                   name="deadline"
-                  .value=${defaultDeadline}
+                  .value=${live(defaultDeadline)}
                 />
               </div>
 
               <div class="row-2">
                 <div class="form-group">
                   <label for="alertType">Tipo de Alerta</label>
-                  <select id="alertType" name="alertType" .value=${t.alertType || 'sound'}>
+                  <select id="alertType" name="alertType" .value=${live(t.alertType || 'sound')}>
                     <option value="sound" ?selected=${t.alertType === 'sound' || !t.alertType}>Alarme Sonoro + Push</option>
                     <option value="notification" ?selected=${t.alertType === 'notification'}>Notificação Simples</option>
                     <option value="none" ?selected=${t.alertType === 'none'}>Nenhum</option>
@@ -313,7 +398,7 @@ export class TaskFormDialog extends LitElement {
 
                 <div class="form-group">
                   <label for="triggerMinutes">Gatilho Pré-Prazo</label>
-                  <select id="triggerMinutes" name="triggerMinutes" .value=${String(t.triggerMinutes ?? 15)}>
+                  <select id="triggerMinutes" name="triggerMinutes" .value=${live(String(t.triggerMinutes ?? 15))}>
                     <option value="0" ?selected=${t.triggerMinutes === 0}>No momento exato</option>
                     <option value="5" ?selected=${t.triggerMinutes === 5}>5 minutos antes</option>
                     <option value="15" ?selected=${t.triggerMinutes === 15 || t.triggerMinutes === undefined}>15 minutos antes</option>
@@ -356,6 +441,7 @@ export class TaskFormDialog extends LitElement {
 
   _close() {
     this.open = false
+    this._resetForm()
     this.dispatchEvent(new CustomEvent('close-dialog', { bubbles: true, composed: true }))
   }
 
@@ -392,6 +478,7 @@ export class TaskFormDialog extends LitElement {
     )
 
     this.open = false
+    this._resetForm()
   }
 }
 

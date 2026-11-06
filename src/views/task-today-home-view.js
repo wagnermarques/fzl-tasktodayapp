@@ -455,7 +455,9 @@ export class TaskTodayHomeView extends LitElement {
   }
 
   _handleEditTask(e) {
-    this.editingTask = e.detail.task
+    const rawTask = e.detail.task
+    const task = this.tasks.find(t => String(t.id) === String(rawTask?.id)) || rawTask
+    this.editingTask = task ? { ...task } : null
     this.dialogOpen = true
   }
 
@@ -564,19 +566,21 @@ export class TaskTodayHomeView extends LitElement {
 
   _handleCardClick(e) {
     const { item } = e.detail
-    const task = item.task || this.tasks.find(t => t.id === item.id)
+    const taskId = item?.id || item?.task?.id
+    const task = this.tasks.find(t => String(t.id) === String(taskId)) || item?.task
     if (task) {
-      this.editingTask = task
+      this.editingTask = { ...task }
       this.dialogOpen = true
     }
   }
 
   _handleCardAction(e) {
     const { item } = e.detail
-    const task = item.task || this.tasks.find(t => t.id === item.id)
+    const taskId = item?.id || item?.task?.id
+    const task = this.tasks.find(t => String(t.id) === String(taskId)) || item?.task
     if (!task) return
     if (isNote(task)) {
-      this.editingTask = task
+      this.editingTask = { ...task }
       this.dialogOpen = true
     } else {
       taskService.toggleComplete(task.id)

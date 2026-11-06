@@ -132,7 +132,25 @@ export class RichTextEditor extends LitElement {
     }
   }
 
+  disconnectedCallback() {
+    super.disconnectedCallback()
+    this._focused = false
+  }
+
+  setValue(val) {
+    this._focused = false
+    this.value = val || ''
+    if (this._editorEl) {
+      this._syncEditorFromValue()
+    }
+  }
+
+  reset() {
+    this.setValue('')
+  }
+
   _syncEditorFromValue() {
+    if (!this._editorEl) return
     const clean = DescriptionSanitizer.sanitize(this.value)
     if (this._editorEl.innerHTML !== clean) {
       this._editorEl.innerHTML = clean
