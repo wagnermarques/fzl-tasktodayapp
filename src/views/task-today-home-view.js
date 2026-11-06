@@ -2,7 +2,7 @@ import { LitElement, html, css } from 'lit'
 import '@fzl/webcomponents-lit/button'
 import '@fzl/webcomponents-lit/crumb'
 import '@fzl/webcomponents-lit/card-list'
-import { authService, navigate, notificationService } from 'fzl-fund-appshell--lit'
+import { authService, navigateToLogin, navigateToSignup, notificationService } from 'fzl-fund-appshell--lit'
 import { taskService } from '../services/task-service.js'
 import { storageManager, ITEM_KIND_TASK, ITEM_KIND_NOTE, isNote } from '../services/storage.js'
 import '../components/task-card.js'
@@ -371,10 +371,10 @@ export class TaskTodayHomeView extends LitElement {
             </fzl-lit-button>
           ` : html`
             <div style="display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap;">
-              <fzl-lit-button variant="primary" size="md" @fzl-click=${() => navigate('#/conta/entrar')}>
+              <fzl-lit-button variant="primary" size="md" @fzl-click=${() => navigateToLogin()}>
                 <md-icon>login</md-icon> Entrar
               </fzl-lit-button>
-              <fzl-lit-button variant="tonal" size="md" @fzl-click=${() => navigate('#/conta/cadastro')}>
+              <fzl-lit-button variant="tonal" size="md" @fzl-click=${() => navigateToSignup()}>
                 <md-icon>person_add</md-icon> Criar conta
               </fzl-lit-button>
             </div>
@@ -447,7 +447,7 @@ export class TaskTodayHomeView extends LitElement {
         type: 'warning',
         duration: 4000
       })
-      navigate('#/conta/entrar')
+      navigateToLogin()
       return
     }
     this.editingTask = null
@@ -466,7 +466,7 @@ export class TaskTodayHomeView extends LitElement {
         type: 'warning',
         duration: 4000
       })
-      navigate('#/conta/entrar')
+      navigateToLogin()
       return
     }
     const { payload, isEditing } = e.detail
