@@ -8,18 +8,18 @@ import { syncService } from './sync-service.js'
 import { onSignOut, isTaskTodayAdmin } from './keycloak-provider.js'
 import { authService } from 'fzl-fund-appshell--lit'
 
-// `0` é uma opção válida de gatilho ("no momento exato"), por isso não usamos `|| 15`;
-// ausente (anotação) cai no padrão
-function normalizeTriggerMinutes(value, fallback = 15) {
-  if (value === null || value === undefined || value === '') return fallback
+// `0` é uma opção válida de gatilho ("no momento exato");
+// ausente ou vazio vira null (gatilho desativado / no prazo)
+function normalizeTriggerMinutes(value, fallback = null) {
+  if (value === null || value === undefined || value === '' || value === 'none') return fallback
   const minutes = Number(value)
   return Number.isFinite(minutes) && minutes >= 0 ? minutes : fallback
 }
 
 /**
- * Mantém as invariantes de cada tipo de item: a tarefa tem prazo, prioridade, status e
- * alarme; a anotação é só título, conteúdo e categoria. Vale também na troca de tipo
- * durante a edição, nos dois sentidos.
+ * Mantém as invariantes de cada tipo de item: a tarefa tem prioridade e status, com prazo,
+ * tipo de alerta e gatilho opcionais; a anotação é só título, conteúdo e categoria.
+ * Vale também na troca de tipo durante a edição, nos dois sentidos.
  */
 function applyKindRules(item) {
   if (isNote(item)) {
@@ -35,13 +35,21 @@ function applyKindRules(item) {
       alarmFired: false
     }
   }
+
+  const hasDeadline = Boolean(item.deadline)
+  const alertType = hasDeadline ? (item.alertType || 'none') : 'none'
+  const triggerMinutes = (alertType === 'none' || !hasDeadline)
+    ? null
+    : normalizeTriggerMinutes(item.triggerMinutes, null)
+
   return {
     ...item,
     kind: ITEM_KIND_TASK,
     priority: item.priority || 'MEDIA',
     status: item.status || 'PENDENTE',
-    alertType: item.alertType || 'sound',
-    triggerMinutes: normalizeTriggerMinutes(item.triggerMinutes)
+    deadline: hasDeadline ? item.deadline : null,
+    alertType,
+    triggerMinutes
   }
 }
 
@@ -212,6 +220,12 @@ class TaskService {
     const prefix = kind === ITEM_KIND_NOTE ? 'note' : 'task'
     const now = new Date().toISOString()
 
+    const hasDeadline = Boolean(taskData.deadline)
+    const alertType = hasDeadline ? (taskData.alertType || 'none') : 'none'
+    const triggerMinutes = (alertType === 'none' || !hasDeadline)
+      ? null
+      : normalizeTriggerMinutes(taskData.triggerMinutes, null)
+
     const newTask = applyKindRules({
       id: `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       kind,
@@ -220,9 +234,9 @@ class TaskService {
       categoryId: taskData.categoryId || 'cat-cotidianas',
       priority: taskData.priority || 'MEDIA', // 'BAIXA', 'MEDIA', 'ALTA', 'URGENTE'
       status: taskData.status || 'PENDENTE',   // 'PENDENTE', 'EM_ANDAMENTO', 'CONCLUIDA'
-      deadline: taskData.deadline ? new Date(taskData.deadline).toISOString() : null,
-      alertType: taskData.alertType || 'sound', // 'sound', 'notification', 'none'
-      triggerMinutes: normalizeTriggerMinutes(taskData.triggerMinutes),
+      deadline: hasDeadline ? new Date(taskData.deadline).toISOString() : null,
+      alertType,
+      triggerMinutes,
       isArchived: false,
       completedAt: null,
       alarmFired: false,
@@ -256,9 +270,14 @@ class TaskService {
       updatedAt: new Date().toISOString()
     })
 
-    // Se mudou o deadline ou reabriu a tarefa, reseta o alarme disparado
-    if (patch.deadline && patch.deadline !== current.deadline) {
-      updated.alarmFired = false
+    // Se mudou ou limpou o deadline, ou reabriu a tarefa, reseta o alarme disparado
+    if (patch.deadline !== undefined) {
+      if (patch.deadline && patch.deadline !== current.deadline) {
+        updated.alarmFired = false
+      } else if (!patch.deadline) {
+        updated.deadline = null
+        updated.alarmFired = false
+      }
     }
     if (patch.status === 'CONCLUIDA' && !current.completedAt) {
       updated.completedAt = new Date().toISOString()

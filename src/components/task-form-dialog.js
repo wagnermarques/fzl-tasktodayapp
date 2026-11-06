@@ -15,7 +15,10 @@ export class TaskFormDialog extends LitElement {
     /** Categoria pré-selecionada ao abrir para criação (a que está em foco na lista) */
     defaultCategoryId: { type: String },
     _kind: { type: String, state: true },
-    _description: { type: String, state: true }
+    _description: { type: String, state: true },
+    _currentDeadline: { type: String, state: true },
+    _currentAlertType: { type: String, state: true },
+    _currentTriggerMinutes: { type: String, state: true }
   }
 
   static styles = css`
@@ -171,6 +174,34 @@ export class TaskFormDialog extends LitElement {
       color: var(--md-sys-color-on-surface-variant, #49454f);
       margin: 0;
     }
+    .field-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .clear-field-btn {
+      background: none;
+      border: none;
+      color: var(--md-sys-color-primary, #6750a4);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .clear-field-btn:hover {
+      opacity: 0.8;
+    }
+    .optional-label {
+      font-size: 0.75rem;
+      font-weight: normal;
+      color: var(--md-sys-color-outline, #79747e);
+    }
+    .field-hint {
+      font-size: 0.75rem;
+      color: var(--md-sys-color-outline, #79747e);
+      margin: 2px 0 0 0;
+    }
   `
 
   constructor() {
@@ -183,6 +214,9 @@ export class TaskFormDialog extends LitElement {
     this.defaultCategoryId = ''
     this._kind = ITEM_KIND_TASK
     this._description = ''
+    this._currentDeadline = ''
+    this._currentAlertType = 'none'
+    this._currentTriggerMinutes = ''
   }
 
   connectedCallback() {
@@ -210,8 +244,14 @@ export class TaskFormDialog extends LitElement {
         this._kind = this.task
           ? (isNote(this.task) ? ITEM_KIND_NOTE : ITEM_KIND_TASK)
           : (this.defaultKind === ITEM_KIND_NOTE ? ITEM_KIND_NOTE : ITEM_KIND_TASK)
+        this._currentDeadline = this.task?.deadline ? this._formatForInput(this.task.deadline) : ''
+        this._currentAlertType = this.task?.alertType || (this.task?.deadline ? 'sound' : 'none')
+        this._currentTriggerMinutes = this.task?.triggerMinutes != null ? String(this.task.triggerMinutes) : ''
       } else {
         this._description = ''
+        this._currentDeadline = ''
+        this._currentAlertType = 'none'
+        this._currentTriggerMinutes = ''
       }
     }
   }
@@ -230,6 +270,8 @@ export class TaskFormDialog extends LitElement {
     const t = this.task || {}
     const defaultDeadline = t.deadline ? this._formatForInput(t.deadline) : ''
     const selectedCategory = t.categoryId || this.defaultCategoryId || 'cat-cotidianas'
+    const alertVal = t.alertType || (t.deadline ? 'sound' : 'none')
+    const triggerVal = t.triggerMinutes != null ? String(t.triggerMinutes) : ''
 
     const form = this.shadowRoot?.querySelector('form')
     if (!form) return
@@ -256,20 +298,56 @@ export class TaskFormDialog extends LitElement {
     if (dlEl) dlEl.value = defaultDeadline
 
     const alertEl = form.querySelector('#alertType')
-    if (alertEl) alertEl.value = t.alertType || 'sound'
+    if (alertEl) alertEl.value = alertVal
 
     const trigEl = form.querySelector('#triggerMinutes')
-    if (trigEl) trigEl.value = String(t.triggerMinutes ?? 15)
+    if (trigEl) trigEl.value = triggerVal
   }
 
   _resetForm() {
     this._description = ''
+    this._currentDeadline = ''
+    this._currentAlertType = 'none'
+    this._currentTriggerMinutes = ''
     const form = this.shadowRoot?.querySelector('form')
     if (form) form.reset()
     const descEl = this.shadowRoot?.querySelector('rich-text-editor')
     if (descEl && typeof descEl.setValue === 'function') {
       descEl.setValue('')
     }
+  }
+
+  _onDeadlineChange(e) {
+    this._currentDeadline = e.target.value || ''
+    if (!this._currentDeadline) {
+      this._currentAlertType = 'none'
+      this._currentTriggerMinutes = ''
+    }
+  }
+
+  _clearDeadline() {
+    this._currentDeadline = ''
+    this._currentAlertType = 'none'
+    this._currentTriggerMinutes = ''
+    const dlEl = this.shadowRoot?.querySelector('#deadline')
+    if (dlEl) dlEl.value = ''
+    const alertEl = this.shadowRoot?.querySelector('#alertType')
+    if (alertEl) alertEl.value = 'none'
+    const trigEl = this.shadowRoot?.querySelector('#triggerMinutes')
+    if (trigEl) trigEl.value = ''
+  }
+
+  _onAlertTypeChange(e) {
+    this._currentAlertType = e.target.value
+    if (this._currentAlertType === 'none') {
+      this._currentTriggerMinutes = ''
+    } else if (!this._currentTriggerMinutes) {
+      this._currentTriggerMinutes = '15'
+    }
+  }
+
+  _onTriggerChange(e) {
+    this._currentTriggerMinutes = e.target.value
   }
 
   _handleBackdropClick(e) {
@@ -327,7 +405,7 @@ export class TaskFormDialog extends LitElement {
               <p class="kind-hint">
                 ${asNote
                   ? 'Anotação guarda só título e conteúdo — sem prazo, prioridade ou alarme.'
-                  : 'Tarefa tem prazo, prioridade e alarme pré-prazo.'}
+                  : 'Tarefa tem prioridade, com prazo e alertas opcionais.'}
               </p>
             </div>
 
@@ -377,37 +455,66 @@ export class TaskFormDialog extends LitElement {
 
             ${asNote ? '' : html`
               <div class="form-group">
-                <label for="deadline">Data e Hora de Prazo (Deadline)</label>
+                <div class="field-label-row">
+                  <label for="deadline">Data e Hora de Prazo (Deadline) <span class="optional-label">(opcional)</span></label>
+                  ${this._currentDeadline ? html`
+                    <button
+                      type="button"
+                      class="clear-field-btn"
+                      @click=${this._clearDeadline}
+                      title="Remover prazo desta tarefa"
+                    >
+                      Remover prazo
+                    </button>
+                  ` : ''}
+                </div>
                 <input
                   type="datetime-local"
                   id="deadline"
                   name="deadline"
-                  .value=${live(defaultDeadline)}
+                  .value=${live(this._currentDeadline)}
+                  @input=${this._onDeadlineChange}
                 />
               </div>
 
               <div class="row-2">
                 <div class="form-group">
-                  <label for="alertType">Tipo de Alerta</label>
-                  <select id="alertType" name="alertType" .value=${live(t.alertType || 'sound')}>
-                    <option value="sound" ?selected=${t.alertType === 'sound' || !t.alertType}>Alarme Sonoro + Push</option>
-                    <option value="notification" ?selected=${t.alertType === 'notification'}>Notificação Simples</option>
-                    <option value="none" ?selected=${t.alertType === 'none'}>Nenhum</option>
+                  <label for="alertType">Tipo de Alerta <span class="optional-label">(opcional)</span></label>
+                  <select
+                    id="alertType"
+                    name="alertType"
+                    .value=${live(this._currentAlertType)}
+                    @change=${this._onAlertTypeChange}
+                    ?disabled=${!this._currentDeadline}
+                  >
+                    <option value="none" ?selected=${this._currentAlertType === 'none'}>Nenhum</option>
+                    <option value="sound" ?selected=${this._currentAlertType === 'sound'}>Alarme Sonoro + Push</option>
+                    <option value="notification" ?selected=${this._currentAlertType === 'notification'}>Notificação Simples</option>
                   </select>
                 </div>
 
                 <div class="form-group">
-                  <label for="triggerMinutes">Gatilho Pré-Prazo</label>
-                  <select id="triggerMinutes" name="triggerMinutes" .value=${live(String(t.triggerMinutes ?? 15))}>
-                    <option value="0" ?selected=${t.triggerMinutes === 0}>No momento exato</option>
-                    <option value="5" ?selected=${t.triggerMinutes === 5}>5 minutos antes</option>
-                    <option value="15" ?selected=${t.triggerMinutes === 15 || t.triggerMinutes === undefined}>15 minutos antes</option>
-                    <option value="30" ?selected=${t.triggerMinutes === 30}>30 minutos antes</option>
-                    <option value="60" ?selected=${t.triggerMinutes === 60}>1 hora antes</option>
-                    <option value="1440" ?selected=${t.triggerMinutes === 1440}>1 dia antes</option>
+                  <label for="triggerMinutes">Gatilho Pré-Prazo <span class="optional-label">(opcional)</span></label>
+                  <select
+                    id="triggerMinutes"
+                    name="triggerMinutes"
+                    .value=${live(this._currentTriggerMinutes)}
+                    @change=${this._onTriggerChange}
+                    ?disabled=${!this._currentDeadline || this._currentAlertType === 'none'}
+                  >
+                    <option value="" ?selected=${this._currentTriggerMinutes === ''}>Nenhum</option>
+                    <option value="0" ?selected=${this._currentTriggerMinutes === '0'}>No momento exato</option>
+                    <option value="5" ?selected=${this._currentTriggerMinutes === '5'}>5 minutos antes</option>
+                    <option value="15" ?selected=${this._currentTriggerMinutes === '15'}>15 minutos antes</option>
+                    <option value="30" ?selected=${this._currentTriggerMinutes === '30'}>30 minutos antes</option>
+                    <option value="60" ?selected=${this._currentTriggerMinutes === '60'}>1 hora antes</option>
+                    <option value="1440" ?selected=${this._currentTriggerMinutes === '1440'}>1 dia antes</option>
                   </select>
                 </div>
               </div>
+              ${!this._currentDeadline ? html`
+                <p class="field-hint">Defina uma data e hora de prazo caso queira programar alarmes ou notificações.</p>
+              ` : ''}
             `}
 
             <div class="dialog-footer">
@@ -459,10 +566,18 @@ export class TaskFormDialog extends LitElement {
 
     // Prazo, prioridade e alarme existem só na tarefa
     if (this._kind !== ITEM_KIND_NOTE) {
-      payload.priority = formData.get('priority')
-      payload.deadline = formData.get('deadline') || null
-      payload.alertType = formData.get('alertType')
-      payload.triggerMinutes = Number(formData.get('triggerMinutes'))
+      payload.priority = formData.get('priority') || 'MEDIA'
+
+      const rawDeadline = formData.get('deadline')
+      payload.deadline = rawDeadline ? new Date(rawDeadline).toISOString() : null
+
+      const rawAlert = formData.get('alertType')
+      payload.alertType = (!payload.deadline || !rawAlert || rawAlert === 'none') ? 'none' : rawAlert
+
+      const rawTrigger = formData.get('triggerMinutes')
+      payload.triggerMinutes = (payload.alertType === 'none' || !payload.deadline || rawTrigger === '' || rawTrigger === null || rawTrigger === undefined)
+        ? null
+        : Number(rawTrigger)
     }
 
     if (this.isEditing && this.task?.id) {

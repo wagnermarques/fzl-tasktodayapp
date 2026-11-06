@@ -252,9 +252,9 @@ export class TaskCard extends LitElement {
                   .deadline=${this.task.deadline}
                   .status=${this.task.status}
                 ></task-deadline-badge>
-                ${this.task.alertType === 'sound' ? html`
+                ${this.task.alertType === 'sound' && this.task.deadline ? html`
                   <span class="action-btn" title="Alarme sonoro ativo">
-                    <md-icon style="font-size: 13px;">volume_up</md-icon> ${this.task.triggerMinutes}m
+                    <md-icon style="font-size: 13px;">volume_up</md-icon>${this.task.triggerMinutes != null ? ` ${this.task.triggerMinutes}m` : ''}
                   </span>
                 ` : ''}
               `}
