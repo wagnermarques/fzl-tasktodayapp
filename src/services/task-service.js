@@ -79,13 +79,14 @@ class TaskService {
 
   _initSync() {
     // O servidor é a referência depois de cada sincronização (inclusive alarmFired,
-    // para o alarme local não tocar de novo o que o push do servidor já avisou)
+    // para o alarme local não tocar de novo o que o push do servidor já avisou), mas
+    // preservamos a ordenação manual local definida pelo usuário via drag-and-drop / card-list
     syncService.onPulled(({ tasks, categories }) => {
       const key = this._getUserTaskKey()
       if (key) {
-        storageManager.setItem(key, this._keepLocalKinds(tasks, this.getTasks(), 'kind'))
+        storageManager.setItem(key, this._mergeServerTasks(tasks, this.getTasks()))
       }
-      storageManager.setItem('categories', this._keepLocalKinds(categories, this.getCategories(), 'defaultKind'))
+      storageManager.setItem('categories', this._mergeServerCategories(categories, this.getCategories()))
       this._notify()
     })
     // Os dados locais são do usuário que está saindo
@@ -97,17 +98,62 @@ class TaskService {
   }
 
   /**
-   * Enquanto o back-end não persistir `kind`/`defaultKind`, mantém o tipo que já está
-   * local para a anotação não voltar do servidor como tarefa.
+   * Mescla as tarefas vindas do servidor mantendo a ordenação manual local que o usuário
+   * definiu via drag-and-drop / card-list e preservando o `kind` local se o backend não enviar.
    */
-  _keepLocalKinds(incoming, local, field) {
+  _mergeServerTasks(incoming, local) {
     if (!Array.isArray(incoming)) return incoming
-    const localById = new Map(local.map(item => [item.id, item]))
-    return incoming.map(item => {
-      if (item[field]) return item
-      const previous = localById.get(item.id)
-      return previous?.[field] ? { ...item, [field]: previous[field] } : item
-    })
+    if (!Array.isArray(local) || local.length === 0) return incoming
+
+    const incomingById = new Map(incoming.map(item => [item.id, item]))
+    const merged = []
+
+    // 1. Percorre a lista local na ordem exata definida pelo usuário
+    for (const localItem of local) {
+      if (incomingById.has(localItem.id)) {
+        const serverItem = incomingById.get(localItem.id)
+        if (!serverItem.kind && localItem.kind) {
+          serverItem.kind = localItem.kind
+        }
+        merged.push(serverItem)
+        incomingById.delete(localItem.id)
+      }
+    }
+
+    // 2. Tarefas novas criadas remotamente ou em outros dispositivos são adicionadas no topo
+    for (const newItem of incomingById.values()) {
+      merged.unshift(newItem)
+    }
+
+    return merged
+  }
+
+  /**
+   * Mescla as categorias do servidor mantendo a ordenação local e o `defaultKind`.
+   */
+  _mergeServerCategories(incoming, local) {
+    if (!Array.isArray(incoming)) return incoming
+    if (!Array.isArray(local) || local.length === 0) return incoming
+
+    const incomingById = new Map(incoming.map(item => [item.id, item]))
+    const merged = []
+
+    for (const localItem of local) {
+      if (incomingById.has(localItem.id)) {
+        const serverItem = incomingById.get(localItem.id)
+        if (!serverItem.defaultKind && localItem.defaultKind) {
+          serverItem.defaultKind = localItem.defaultKind
+        }
+        merged.push(serverItem)
+        incomingById.delete(localItem.id)
+      }
+    }
+
+    for (const newItem of incomingById.values()) {
+      merged.push(newItem)
+    }
+
+    return merged
   }
 
   subscribe(listener) {
