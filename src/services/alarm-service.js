@@ -172,8 +172,11 @@ class AlarmService {
     }
 
     if (Notification.permission === 'granted') {
+      const plainBody = task.description
+        ? task.description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+        : 'O prazo para esta tarefa está próximo ou venceu!'
       new Notification(`Alarme: ${task.title}`, {
-        body: task.description || 'O prazo para esta tarefa está próximo ou venceu!',
+        body: plainBody,
         icon: '/favicon.svg',
         tag: `task-alarm-${task.id}`
       })

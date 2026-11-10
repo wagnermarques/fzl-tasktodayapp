@@ -1,6 +1,8 @@
 import { LitElement, html, css } from 'lit'
+import { unsafeHTML } from 'lit/directives/unsafe-html.js'
 import '@fzl/webcomponents-lit/button'
 import { alarmService } from '../services/alarm-service.js'
+import { DescriptionSanitizer } from '../utils/html-sanitize.js'
 
 export class TaskAlarmDialog extends LitElement {
   static properties = {
@@ -27,6 +29,8 @@ export class TaskAlarmDialog extends LitElement {
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.2s ease-in-out;
+      padding: 16px;
+      box-sizing: border-box;
     }
     .dialog-backdrop.open {
       opacity: 1;
@@ -35,8 +39,11 @@ export class TaskAlarmDialog extends LitElement {
     .dialog-box {
       background: var(--md-sys-color-surface, #ffffff);
       border-radius: 20px;
-      width: 90%;
-      max-width: 460px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-sizing: border-box;
       padding: 24px;
       box-shadow: 0 12px 36px rgba(186, 26, 26, 0.35);
       border: 2px solid var(--md-sys-color-error, #ba1a1a);
@@ -48,7 +55,7 @@ export class TaskAlarmDialog extends LitElement {
     }
     @keyframes pulse {
       0% { transform: scale(1); }
-      100% { transform: scale(1.02); }
+      100% { transform: scale(1.01); }
     }
     .alarm-icon {
       font-size: 54px;
@@ -66,17 +73,45 @@ export class TaskAlarmDialog extends LitElement {
       font-weight: 600;
       color: var(--md-sys-color-on-surface, #1d1b20);
       margin: 4px 0;
+      word-break: break-word;
     }
     .task-desc {
       font-size: 0.9rem;
       color: var(--md-sys-color-on-surface-variant, #49454f);
       margin: 0;
+      max-height: 240px;
+      overflow-y: auto;
+      text-align: left;
+      line-height: 1.5;
+      word-break: break-word;
+      padding: 12px 14px;
+      background: var(--md-sys-color-surface-container-low, #f7f2fa);
+      border-radius: 10px;
+      border: 1px solid var(--md-sys-color-outline-variant, #cac4d0);
+    }
+    .task-desc p {
+      margin: 0 0 8px 0;
+    }
+    .task-desc p:last-child {
+      margin-bottom: 0;
+    }
+    .task-desc :is(ul, ol) {
+      margin: 6px 0;
+      padding-left: 20px;
+    }
+    .task-desc a {
+      color: var(--md-sys-color-primary, #6750a4);
+      word-break: break-all;
+    }
+    .task-desc :is(div, span) {
+      max-width: 100%;
     }
     .actions {
       display: flex;
       flex-direction: column;
       gap: 10px;
-      margin-top: 10px;
+      margin-top: 6px;
+      flex-shrink: 0;
     }
     .btn-row {
       display: grid;
@@ -146,7 +181,11 @@ export class TaskAlarmDialog extends LitElement {
           <md-icon class="alarm-icon">alarm_on</md-icon>
           <h2 class="alarm-title">ALERTA DE PRAZO!</h2>
           <div class="task-title">${this.task.title}</div>
-          ${this.task.description ? html`<p class="task-desc">${this.task.description}</p>` : ''}
+          ${this.task.description ? html`
+            <div class="task-desc">
+              ${unsafeHTML(DescriptionSanitizer.sanitize(this.task.description))}
+            </div>
+          ` : ''}
 
           <div class="actions">
             <fzl-lit-button variant="primary" size="lg" style="width: 100%; justify-content: center;" @fzl-click=${this._completeTask}>
