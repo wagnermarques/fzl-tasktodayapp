@@ -1,6 +1,7 @@
 import { LitElement, html, css } from 'lit'
 import { unsafeHTML } from 'lit/directives/unsafe-html.js'
 import '@fzl/webcomponents-lit/button'
+import '@fzl/webcomponents-lit/card'
 import './task-deadline-badge.js'
 import { DescriptionSanitizer } from '../utils/html-sanitize.js'
 import { isNote } from '../services/storage.js'
@@ -8,73 +9,89 @@ import { isNote } from '../services/storage.js'
 export class TaskCard extends LitElement {
   static properties = {
     task: { type: Object },
-    category: { type: Object }
+    category: { type: Object },
+    expanded: { type: Boolean }
   }
 
   static styles = css`
     :host {
       display: block;
     }
-    .card {
+    fzl-lit-card {
+      width: 100%;
+    }
+    fzl-lit-card::part(card) {
       background-color: var(--md-sys-color-surface-container-low, #f7f2fa);
       border: 1px solid var(--md-sys-color-outline-variant, #cac4d0);
       border-radius: 12px;
-      padding: 14px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+      padding: 12px 14px;
       transition: box-shadow 0.2s, border-color 0.2s, transform 0.1s;
     }
-    .card:hover {
+    fzl-lit-card::part(card):hover {
       box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
       border-color: var(--md-sys-color-outline, #79747e);
     }
-    .card.completed {
+    fzl-lit-card.completed::part(card) {
       opacity: 0.7;
       background-color: var(--md-sys-color-surface-container, #f3edf7);
     }
-    .card.completed .title {
+    fzl-lit-card.note::part(card) {
+      background-color: var(--md-sys-color-tertiary-container, #ffd8e4);
+      border-color: var(--md-sys-color-tertiary, #7d5260);
+      border-left-width: 4px;
+    }
+    fzl-lit-card::part(card-footer) {
+      border-top: 1px solid var(--md-sys-color-outline-variant, #e7e0ec);
+      padding-top: 8px;
+      margin-top: 4px;
+    }
+    .title-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+    .title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--md-sys-color-on-surface, #1d1b20);
+      margin: 0;
+      word-break: break-word;
+      line-height: 1.3;
+    }
+    .title.completed {
       text-decoration: line-through;
       color: var(--md-sys-color-outline, #79747e);
-    }
-    .header-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
     }
     .checkbox-btn {
       background: none;
       border: none;
       cursor: pointer;
       padding: 0;
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       color: var(--md-sys-color-primary, #6750a4);
-      margin-top: 2px;
+      flex-shrink: 0;
     }
     .checkbox-btn md-icon {
-      font-size: 24px;
+      font-size: 22px;
     }
-    .content-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 0;
-    }
-    .title-line {
-      display: flex;
+    .note-icon {
+      color: var(--md-sys-color-tertiary, #7d5260);
+      display: inline-flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+      flex-shrink: 0;
     }
-    .title {
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--md-sys-color-on-surface, #1d1b20);
-      margin: 0;
-      word-break: break-word;
+    .note-icon md-icon {
+      font-size: 20px;
+    }
+    .header-badges {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
     }
     .priority-pill {
       font-size: 0.65rem;
@@ -100,10 +117,34 @@ export class TaskCard extends LitElement {
       background: #78909c;
       color: #ffffff;
     }
+    .kind-pill {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: var(--md-sys-color-tertiary, #7d5260);
+      color: var(--md-sys-color-on-tertiary, #ffffff);
+      white-space: nowrap;
+    }
+    .category-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 12px;
+      color: #ffffff;
+    }
+    .category-chip md-icon {
+      font-size: 13px;
+    }
     .description {
       font-size: 0.85rem;
       color: var(--md-sys-color-on-surface-variant, #49454f);
-      margin: 0;
+      margin: 0 0 8px 0;
       line-height: 1.4;
       white-space: pre-line;
       word-break: break-word;
@@ -128,26 +169,14 @@ export class TaskCard extends LitElement {
       gap: 8px;
       margin-top: 4px;
     }
-    .category-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.75rem;
-      font-weight: 500;
-      padding: 2px 8px;
-      border-radius: 12px;
-      color: #ffffff;
-    }
-    .category-chip md-icon {
-      font-size: 13px;
-    }
     .actions-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-top: 1px solid var(--md-sys-color-outline-variant, #e7e0ec);
-      padding-top: 8px;
-      margin-top: 2px;
+      width: 100%;
+    }
+    .actions-row.note-actions {
+      justify-content: flex-end;
     }
     .quick-reschedule {
       display: flex;
@@ -181,31 +210,6 @@ export class TaskCard extends LitElement {
       align-items: center;
       gap: 2px;
     }
-    /* Anotação: aspecto de papel, sem faixa de conclusão nem prazo */
-    .card.note {
-      background-color: var(--md-sys-color-tertiary-container, #ffd8e4);
-      border-color: var(--md-sys-color-tertiary, #7d5260);
-      border-left-width: 4px;
-    }
-    .note-icon {
-      color: var(--md-sys-color-tertiary, #7d5260);
-      margin-top: 2px;
-      display: flex;
-    }
-    .kind-pill {
-      font-size: 0.65rem;
-      font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      background: var(--md-sys-color-tertiary, #7d5260);
-      color: var(--md-sys-color-on-tertiary, #ffffff);
-      white-space: nowrap;
-    }
-    .actions-row.note-actions {
-      justify-content: flex-end;
-    }
   `
 
   render() {
@@ -218,14 +222,19 @@ export class TaskCard extends LitElement {
     const catName = this.category?.name || 'Geral'
 
     return html`
-      <div class="card ${isCompleted ? 'completed' : ''} ${asNote ? 'note' : ''}">
-        <div class="header-row">
+      <fzl-lit-card
+        class="task-card-wrapper ${isCompleted ? 'completed' : ''} ${asNote ? 'note' : ''}"
+        collapsible
+        body-max-height="180px"
+      >
+        <div slot="title" class="title-row">
           ${asNote ? html`
-            <span class="note-icon" title="Anotação">
+            <span class="note-icon" title="Anotação" @click=${this._stopProp}>
               <md-icon>sticky_note_2</md-icon>
             </span>
           ` : html`
             <button
+              type="button"
               class="checkbox-btn"
               @click=${this._toggleComplete}
               title=${isCompleted ? 'Marcar como pendente' : 'Concluir tarefa'}
@@ -233,76 +242,87 @@ export class TaskCard extends LitElement {
               <md-icon>${isCompleted ? 'check_box' : 'check_box_outline_blank'}</md-icon>
             </button>
           `}
-          <div class="content-area">
-            <div class="title-line">
-              <h3 class="title">${this.task.title}</h3>
-              ${asNote
-                ? html`<span class="kind-pill">Anotação</span>`
-                : html`<span class="priority-pill priority-${this.task.priority || 'MEDIA'}">${this.task.priority || 'MÉDIA'}</span>`}
-            </div>
-            ${this.task.description ? html`<div class="description">${unsafeHTML(DescriptionSanitizer.sanitize(this.task.description))}</div>` : ''}
-
-            <div class="meta-row">
-              <span class="category-chip" style="background-color: ${catColor}">
-                <md-icon>${catIcon}</md-icon>
-                ${catName}
-              </span>
-              ${asNote ? '' : html`
-                <task-deadline-badge
-                  .deadline=${this.task.deadline}
-                  .status=${this.task.status}
-                ></task-deadline-badge>
-                ${this.task.alertType === 'sound' && this.task.deadline ? html`
-                  <span class="action-btn" title="Alarme sonoro ativo">
-                    <md-icon style="font-size: 13px;">volume_up</md-icon>${this.task.triggerMinutes != null ? ` ${this.task.triggerMinutes}m` : ''}
-                  </span>
-                ` : ''}
-              `}
-            </div>
-          </div>
+          <h3 class="title ${isCompleted ? 'completed' : ''}">${this.task.title}</h3>
         </div>
 
-        <div class="actions-row ${asNote ? 'note-actions' : ''}">
+        <div slot="header-actions" class="header-badges">
+          ${asNote
+            ? html`<span class="kind-pill">Anotação</span>`
+            : html`<span class="priority-pill priority-${this.task.priority || 'MEDIA'}">${this.task.priority || 'MÉDIA'}</span>`}
+          <span class="category-chip" style="background-color: ${catColor}">
+            <md-icon>${catIcon}</md-icon>
+            ${catName}
+          </span>
+        </div>
+
+        ${this.task.description ? html`
+          <div class="description">${unsafeHTML(DescriptionSanitizer.sanitize(this.task.description))}</div>
+        ` : ''}
+
+        <div class="meta-row">
+          ${asNote ? '' : html`
+            <task-deadline-badge
+              .deadline=${this.task.deadline}
+              .status=${this.task.status}
+            ></task-deadline-badge>
+            ${this.task.alertType === 'sound' && this.task.deadline ? html`
+              <span class="action-btn" title="Alarme sonoro ativo">
+                <md-icon style="font-size: 13px;">volume_up</md-icon>${this.task.triggerMinutes != null ? ` ${this.task.triggerMinutes}m` : ''}
+              </span>
+            ` : ''}
+          `}
+        </div>
+
+        <div slot="footer" class="actions-row ${asNote ? 'note-actions' : ''}">
           ${asNote ? '' : html`
             <div class="quick-reschedule">
               <span style="font-size: 0.72rem; color: var(--md-sys-color-outline);">Adiar:</span>
-              <fzl-lit-button size="sm" variant="secondary" @fzl-click=${() => this._reschedule(1)} title="Adiar 1 dia">+1 dia</fzl-lit-button>
-              <fzl-lit-button size="sm" variant="secondary" @fzl-click=${() => this._reschedule(7)} title="Adiar 1 semana">+7 dias</fzl-lit-button>
+              <fzl-lit-button size="sm" variant="secondary" @fzl-click=${(e) => this._reschedule(1, e)} title="Adiar 1 dia">+1 dia</fzl-lit-button>
+              <fzl-lit-button size="sm" variant="secondary" @fzl-click=${(e) => this._reschedule(7, e)} title="Adiar 1 semana">+7 dias</fzl-lit-button>
             </div>
           `}
           <div class="right-actions">
-            <button class="action-btn icon-only" @click=${this._editTask} title="Editar">
+            <button type="button" class="action-btn icon-only" @click=${this._editTask} title="Editar">
               <md-icon style="font-size: 18px;">edit</md-icon>
             </button>
-            <button class="action-btn icon-only" @click=${this._toggleArchive} title=${this.task.isArchived ? 'Desarquivar' : 'Arquivar'}>
+            <button type="button" class="action-btn icon-only" @click=${this._toggleArchive} title=${this.task.isArchived ? 'Desarquivar' : 'Arquivar'}>
               <md-icon style="font-size: 18px;">${this.task.isArchived ? 'unarchive' : 'archive'}</md-icon>
             </button>
-            <button class="action-btn icon-only" @click=${this._deleteTask} title="Excluir" style="color: var(--md-sys-color-error, #ba1a1a);">
+            <button type="button" class="action-btn icon-only" @click=${this._deleteTask} title="Excluir" style="color: var(--md-sys-color-error, #ba1a1a);">
               <md-icon style="font-size: 18px;">delete</md-icon>
             </button>
           </div>
         </div>
-      </div>
+      </fzl-lit-card>
     `
   }
 
-  _toggleComplete() {
+  _stopProp(e) {
+    e?.stopPropagation()
+  }
+
+  _toggleComplete(e) {
+    e?.stopPropagation()
     this.dispatchEvent(new CustomEvent('toggle-complete', { detail: { taskId: this.task.id }, bubbles: true, composed: true }))
   }
 
-  _reschedule(days) {
+  _reschedule(days, e) {
+    e?.stopPropagation()
     this.dispatchEvent(new CustomEvent('reschedule', { detail: { taskId: this.task.id, days }, bubbles: true, composed: true }))
   }
 
-  _editTask() {
+  _editTask(e) {
+    e?.stopPropagation()
     this.dispatchEvent(new CustomEvent('edit-task', { detail: { task: this.task }, bubbles: true, composed: true }))
   }
 
-  _toggleArchive() {
+  _toggleArchive(e) {
+    e?.stopPropagation()
     this.dispatchEvent(new CustomEvent('toggle-archive', { detail: { taskId: this.task.id, isArchived: !this.task.isArchived }, bubbles: true, composed: true }))
   }
 
-  _deleteTask() {
+  _deleteTask(e) {
+    e?.stopPropagation()
     this.dispatchEvent(new CustomEvent('delete-task', { detail: { taskId: this.task.id }, bubbles: true, composed: true }))
   }
 }

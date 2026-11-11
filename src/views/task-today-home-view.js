@@ -386,6 +386,8 @@ export class TaskTodayHomeView extends LitElement {
             .items=${this._toCardItems(catMap)}
             layout="grid"
             allow-reorder
+            collapsible-cards
+            card-body-max-height="180px"
             @fzl-cards-reorder=${this._handleCardsReorder}
             @fzl-card-click=${this._handleCardClick}
             @fzl-card-action=${this._handleCardAction}
@@ -551,6 +553,7 @@ export class TaskTodayHomeView extends LitElement {
         badge,
         tags: cat?.name ? [cat.name] : [],
         actionLabel: asNote ? 'Abrir' : (task.status === 'CONCLUIDA' ? 'Reabrir' : 'Concluir'),
+        collapsible: true,
         task
       }
     })
