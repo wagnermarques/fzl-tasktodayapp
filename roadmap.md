@@ -64,7 +64,9 @@ Documento de acompanhamento do ciclo de vida, entregas realizadas e próximas et
 - [x] **RF06 — Manutenção e Edição (Atualizar)**:
   - Edição inline e atalhos rápidos de reagendamento (+1 dia, +7 dias) no componente [`<task-card>`](src/components/task-card.js).
 - [x] **RF07 — Exclusão e Arquivamento (Deletar)**:
-  - Exclusão individual com confirmação e funcionalidade de arquivar/desarquivar tarefas.
+  - Exclusão individual de tarefas e anotações com confirmação personalizada contextualizada (`esta tarefa` / `esta anotação`).
+  - Botão de exclusão rápida integrado ao cabeçalho e rodapé dos cards (acessível mesmo com card colapsado) e no modal de edição [`<task-form-dialog>`](src/components/task-form-dialog.js).
+  - Funcionalidade de arquivar/desarquivar tarefas e sincronização automática com outbox REST.
 - [x] **RF08 — Notificações Web Push & VAPID**:
   - Serviço [`push-service.js`](src/services/push-service.js) com suporte a par de chaves VAPID, registro via Service Worker e disparo de notificações no SO/navegador.
 

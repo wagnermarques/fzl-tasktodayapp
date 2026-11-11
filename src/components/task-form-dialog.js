@@ -111,6 +111,7 @@ export class TaskFormDialog extends LitElement {
     .dialog-footer {
       display: flex;
       justify-content: flex-end;
+      align-items: center;
       gap: 10px;
       margin-top: 8px;
     }
@@ -518,15 +519,41 @@ export class TaskFormDialog extends LitElement {
             `}
 
             <div class="dialog-footer">
-              <fzl-lit-button variant="secondary" size="md" @fzl-click=${this._close}>Cancelar</fzl-lit-button>
-              <fzl-lit-button variant="primary" size="md" @fzl-click=${this._triggerSubmit}>
-                <md-icon>save</md-icon> ${this.isEditing ? 'Atualizar' : `Criar ${noun}`}
+              ${this.isEditing && this.task?.id ? html`
+                <fzl-lit-button
+                  type="button"
+                  variant="danger"
+                  size="md"
+                  @fzl-click=${this._handleDelete}
+                  title="Excluir ${noun}"
+                >
+                  <md-icon slot="icon">delete</md-icon> Excluir
+                </fzl-lit-button>
+              ` : ''}
+              <div style="flex: 1;"></div>
+              <fzl-lit-button type="button" variant="secondary" size="md" @fzl-click=${this._close}>Cancelar</fzl-lit-button>
+              <fzl-lit-button type="button" variant="primary" size="md" @fzl-click=${this._triggerSubmit}>
+                <md-icon slot="icon">save</md-icon> ${this.isEditing ? 'Atualizar' : `Criar ${noun}`}
               </fzl-lit-button>
             </div>
           </form>
         </div>
       </div>
     `
+  }
+
+  _handleDelete() {
+    if (!this.task?.id) return
+    const asNote = this._kind === ITEM_KIND_NOTE
+    const noun = asNote ? 'esta anotação' : 'esta tarefa'
+    if (confirm(`Deseja realmente excluir ${noun}?`)) {
+      this.dispatchEvent(new CustomEvent('delete-task', {
+        detail: { taskId: this.task.id, confirmed: true },
+        bubbles: true,
+        composed: true
+      }))
+      this._close()
+    }
   }
 
   _triggerSubmit() {

@@ -418,6 +418,7 @@ export class TaskTodayHomeView extends LitElement {
         .defaultKind=${this._suggestedKind}
         .defaultCategoryId=${this.filterParams.categoryId === 'all' ? '' : this.filterParams.categoryId}
         @save-task=${this._handleSaveTask}
+        @delete-task=${this._handleDeleteTask}
         @close-dialog=${() => { this.dialogOpen = false; this.editingTask = null }}
       ></task-form-dialog>
 
@@ -496,10 +497,22 @@ export class TaskTodayHomeView extends LitElement {
   }
 
   _handleDeleteTask(e) {
-    const item = this.tasks.find(t => t.id === e.detail.taskId)
+    const taskId = e.detail?.taskId
+    if (!taskId) return
+    if (e.detail?.confirmed) {
+      taskService.deleteTask(taskId)
+      this.dialogOpen = false
+      this.editingTask = null
+      return
+    }
+    const item = this.tasks.find(t => t.id === taskId)
     const noun = isNote(item) ? 'esta anotação' : 'esta tarefa'
     if (confirm(`Deseja realmente excluir ${noun}?`)) {
-      taskService.deleteTask(e.detail.taskId)
+      taskService.deleteTask(taskId)
+      if (this.editingTask?.id === taskId) {
+        this.dialogOpen = false
+        this.editingTask = null
+      }
     }
   }
 

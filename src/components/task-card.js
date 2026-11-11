@@ -253,6 +253,15 @@ export class TaskCard extends LitElement {
             <md-icon>${catIcon}</md-icon>
             ${catName}
           </span>
+          <button
+            type="button"
+            class="action-btn icon-only"
+            @click=${this._deleteTask}
+            title="Excluir ${asNote ? 'anotação' : 'tarefa'}"
+            style="color: var(--md-sys-color-error, #ba1a1a);"
+          >
+            <md-icon style="font-size: 18px;">delete</md-icon>
+          </button>
         </div>
 
         ${this.task.description ? html`
