@@ -1,6 +1,7 @@
 import { LitElement, html, css } from 'lit'
 import '@fzl/webcomponents-lit/button'
 import '@fzl/webcomponents-lit/crumb'
+import '@fzl/webcomponents-lit/card'
 import '@fzl/webcomponents-lit/card-list'
 import { authService, navigateToLogin, navigateToSignup, notificationService } from 'fzl-fund-appshell--lit'
 import { taskService } from '../services/task-service.js'
@@ -388,8 +389,11 @@ export class TaskTodayHomeView extends LitElement {
             allow-reorder
             collapsible-cards
             card-body-max-height="180px"
+            storage-key="fzl-tasktodayapp-cards-order"
+            storage-type="local"
             @fzl-cards-reorder=${this._handleCardsReorder}
             @fzl-card-click=${this._handleCardClick}
+            @fzl-card-title-click=${this._handleCardTitleClick}
             @fzl-card-action=${this._handleCardAction}
           ></fzl-lit-card-list>
         </div>
@@ -567,6 +571,7 @@ export class TaskTodayHomeView extends LitElement {
         tags: cat?.name ? [cat.name] : [],
         actionLabel: asNote ? 'Abrir' : (task.status === 'CONCLUIDA' ? 'Reabrir' : 'Concluir'),
         collapsible: true,
+        expanded: false,
         task
       }
     })
@@ -580,14 +585,32 @@ export class TaskTodayHomeView extends LitElement {
     }
   }
 
-  _handleCardClick(e) {
-    const { item } = e.detail
+  _openTaskModal(item) {
     const taskId = item?.id || item?.task?.id
     const task = this.tasks.find(t => String(t.id) === String(taskId)) || item?.task
     if (task) {
       this.editingTask = { ...task }
       this.dialogOpen = true
     }
+  }
+
+  _handleCardTitleClick(e) {
+    const { item } = e.detail
+    this._openTaskModal(item)
+  }
+
+  _handleCardClick(e) {
+    const cardList = e.currentTarget
+    const { item, index, originalEvent, fromTitle } = e.detail
+    if (fromTitle) {
+      this._openTaskModal(item)
+      return
+    }
+    if (cardList && typeof cardList.isCardExpanded === 'function' && item && !cardList.isCardExpanded(item)) {
+      cardList.toggleCardExpand(item, index, originalEvent)
+      return
+    }
+    this._openTaskModal(item)
   }
 
   _handleCardAction(e) {

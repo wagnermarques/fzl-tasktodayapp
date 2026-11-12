@@ -59,6 +59,18 @@ export class TaskCard extends LitElement {
       margin: 0;
       word-break: break-word;
       line-height: 1.3;
+      cursor: pointer;
+      user-select: none;
+      transition: color 0.15s ease, text-decoration 0.15s ease;
+    }
+    .title:hover {
+      color: var(--md-sys-color-primary, #6750a4);
+      text-decoration: underline;
+    }
+    .title:focus-visible {
+      outline: 2px solid var(--md-sys-color-primary, #6750a4);
+      outline-offset: 2px;
+      border-radius: 4px;
     }
     .title.completed {
       text-decoration: line-through;
@@ -242,7 +254,19 @@ export class TaskCard extends LitElement {
               <md-icon>${isCompleted ? 'check_box' : 'check_box_outline_blank'}</md-icon>
             </button>
           `}
-          <h3 class="title ${isCompleted ? 'completed' : ''}">${this.task.title}</h3>
+          <h3
+            class="title ${isCompleted ? 'completed' : ''}"
+            role="button"
+            tabindex="0"
+            title="Abrir tarefa"
+            @click=${this._editTask}
+            @keydown=${(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this._editTask(e);
+              }
+            }}
+          >${this.task.title}</h3>
         </div>
 
         <div slot="header-actions" class="header-badges">
